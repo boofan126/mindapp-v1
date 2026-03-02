@@ -71,9 +71,14 @@ async function sendEmail(type, task) {
     console.log(`邮件发送成功 (${type}): ${task.id}`);
     return true;
   } catch (error) {
-    console.error(`邮件发送失败 (${type}):`, error.response?.data || error.message);
-    return false;
-  }
+  console.error('邮件发送失败详细错误:', {
+    message: error.message,
+    response: error.response?.data,
+    status: error.response?.status,
+    headers: error.response?.headers
+  });
+  return false;
+}
 }
 
 // ---------- 核心函数：检查单个任务状态并处理邮件 ----------
