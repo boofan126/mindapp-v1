@@ -45,23 +45,31 @@ let db;
 
 // ---------- 辅助函数：发送邮件 ----------
 async function sendEmail(type, task) {
+  console.log('环境变量检查:');
+  console.log('- USER_ID 是否存在:', !!process.env.USER_ID);
+  console.log('- PRIVATE_KEY 是否存在:', !!process.env.PRIVATE_KEY);
+  console.log('- SERVICE_ID 是否存在:', !!process.env.SERVICE_ID);
+  console.log('- WARNING_TEMPLATE_ID 是否存在:', !!process.env.WARNING_TEMPLATE_ID);
+  console.log('- FINAL_TEMPLATE_ID 是否存在:', !!process.env.FINAL_TEMPLATE_ID);
+  console.log('- FROM_EMAIL 是否存在:', !!process.env.FROM_EMAIL);
+
   const templateId = type === 'warning' 
-    ? process.env.EMAILJS_WARNING_TEMPLATE_ID 
-    : process.env.EMAILJS_FINAL_TEMPLATE_ID;
+    ? process.env.WARNING_TEMPLATE_ID 
+    : process.env.FINAL_TEMPLATE_ID;
   const toEmail = type === 'warning' ? task.warningEmail : task.finalEmail;
   const message = type === 'warning' ? task.warningMessage : task.finalMessage;
 
   const payload = {
-    service_id: process.env.EMAILJS_SERVICE_ID,
+    service_id: process.env.SERVICE_ID,
     template_id: templateId,
-    user_id: process.env.EMAILJS_PUBLIC_KEY,
+    user_id: process.env.USER_ID,               // 对应 Render 的 USER_ID
     template_params: {
       to_email: toEmail,
       from_email: process.env.FROM_EMAIL,
       task_name: task.name,
       message: message
     },
-    accessToken: process.env.EMAILJS_PRIVATE_KEY
+    accessToken: process.env.PRIVATE_KEY         // 对应 Render 的 PRIVATE_KEY
   };
 
   try {
@@ -71,41 +79,37 @@ async function sendEmail(type, task) {
     console.log(`邮件发送成功 (${type}): ${task.id}`);
     return true;
   } catch (error) {
-  console.error('邮件发送失败详细错误:', {
-    message: error.message,
-    response: error.response?.data,
-    status: error.response?.status,
-    headers: error.response?.headers
-  });
-  return false;
-}
+    console.error('邮件发送失败详细错误:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      headers: error.response?.headers
+    });
+    return false;
+  }
 }
 
 // ---------- 核心函数：检查单个任务状态并处理邮件 ----------
 async function checkTask(task) {
   const now = Date.now();
   const diffMs = now - task.lastCheckin;
-  const virtualDays = Math.floor(diffMs / (60 * 1000)); // 1分钟 = 1天（测试用，正式版改为 / (24*60*60*1000)）
+  const virtualDays = Math.floor(diffMs / (60 * 1000)); // 1分钟 = 1天（测试用）
 
   const cycleDays = task.cycleDays;
   const warningDays = task.warningDays;
   const finalDays = task.finalDays;
 
-  // 计算逾期天数
   if (virtualDays <= cycleDays) {
-    // 正常状态，无事发生
-    return;
+    return; // 正常状态
   }
 
   const overdueDays = virtualDays - cycleDays;
 
-  // 检查警告
+  // 警告状态
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
-    // 警告状态
     if (!task.warningSent) {
       const success = await sendEmail('warning', task);
       if (success) {
-        // 更新 warningSent 和 warningTriggeredAt
         await db.run(
           'UPDATE tasks SET warningSent = 1, warningTriggeredAt = ? WHERE id = ?',
           [now, task.id]
@@ -113,10 +117,8 @@ async function checkTask(task) {
       }
     }
   }
-  // 检查最终（基于方案2：从警告触发时刻开始计时）
+  // 最终状态（从警告触发时刻开始计时）
   else if (overdueDays >= warningDays + finalDays) {
-    // 最终状态
-    // 方案2：如果 warningTriggeredAt 存在，则判断是否达到 finalDays
     if (task.warningTriggeredAt) {
       const finalDiffMs = now - task.warningTriggeredAt;
       const finalVirtualDays = Math.floor(finalDiffMs / (60 * 1000));
@@ -127,7 +129,7 @@ async function checkTask(task) {
         }
       }
     } else {
-      // 没有 warningTriggeredAt（可能之前没触发警告就直接达到了最终），按原逻辑处理
+      // 没有 warningTriggeredAt（可能直接达到最终），按原逻辑处理
       if (!task.finalSent) {
         const success = await sendEmail('final', task);
         if (success) {
@@ -149,7 +151,7 @@ cron.schedule('0 * * * *', async () => {
 
 // ---------- API 路由 ----------
 
-// 获取所有任务（用于前端展示）
+// 获取所有任务
 app.get('/api/tasks', async (req, res) => {
   try {
     const tasks = await db.all('SELECT * FROM tasks');
@@ -162,7 +164,6 @@ app.get('/api/tasks', async (req, res) => {
 // 创建新任务
 app.post('/api/tasks', async (req, res) => {
   const task = req.body;
-  // 补全必填字段
   const now = Date.now();
   const newTask = {
     id: task.id || `task_${now}_${Math.random().toString(36).substr(2, 4)}`,
@@ -199,10 +200,8 @@ app.post('/api/tasks', async (req, res) => {
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
-  // 构建 SET 语句
   const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-  const values = Object.values(updates);
-  values.push(id);
+  const values = [...Object.values(updates), id];
   try {
     await db.run(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
     res.json({ success: true });
@@ -240,23 +239,18 @@ app.post('/api/tasks/:id/checkin', async (req, res) => {
 // 测试接口：手动触发发送测试邮件
 app.get('/api/test-email', async (req, res) => {
   console.log('📧 收到测试邮件请求');
-  
-  // 从数据库中取一个真实任务来测试，或者用下面的测试任务
   const testTask = {
     name: '测试任务',
-    warningEmail: '2924773@qq.com',  // 用你任务中的邮箱
+    warningEmail: '2924773@qq.com',   // 请替换为你自己的测试邮箱
     finalEmail: 'fanlitao@188.com',
     warningMessage: '这是一封测试警告邮件',
     finalMessage: '这是一封测试最终通知邮件'
   };
-  
   try {
     console.log('尝试发送警告邮件...');
     const warningSuccess = await sendEmail('warning', testTask);
-    
     console.log('尝试发送最终邮件...');
     const finalSuccess = await sendEmail('final', testTask);
-    
     res.json({ 
       success: warningSuccess && finalSuccess,
       warning: warningSuccess ? '✅ 警告邮件发送成功' : '❌ 警告邮件发送失败',
