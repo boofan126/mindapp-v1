@@ -233,7 +233,6 @@ app.post('/api/tasks/:id/checkin', async (req, res) => {
 });
 
 // 启动服务器
-const port = process.env.PORT || 3000;
 app.listen(port, '0.0.0.0', () => {
   console.log(`后端服务运行在端口 ${port}`);
 });
