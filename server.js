@@ -142,7 +142,8 @@ async function checkTask(task) {
 
 // ---------- 定时任务：每小时运行一次 ----------
 // -------3月2日 21:32改进，从0****改为*****，意思一分钟检查一次
-cron.schedule('* * * * *', async () => {
+// -------3月2日 22:02改回0****，一小时一次，否则浪费网络资源，今后要改为一天一次
+cron.schedule('0 * * * *', async () => {
   console.log('运行定时任务检查任务状态...');
   const tasks = await db.all('SELECT * FROM tasks');
   for (const task of tasks) {
