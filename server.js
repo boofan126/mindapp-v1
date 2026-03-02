@@ -232,6 +232,37 @@ app.post('/api/tasks/:id/checkin', async (req, res) => {
   }
 });
 
+// 测试接口：手动触发发送测试邮件
+app.get('/api/test-email', async (req, res) => {
+  console.log('📧 收到测试邮件请求');
+  
+  // 从数据库中取一个真实任务来测试，或者用下面的测试任务
+  const testTask = {
+    name: '测试任务',
+    warningEmail: '2924773@qq.com',  // 用你任务中的邮箱
+    finalEmail: 'fanlitao@188.com',
+    warningMessage: '这是一封测试警告邮件',
+    finalMessage: '这是一封测试最终通知邮件'
+  };
+  
+  try {
+    console.log('尝试发送警告邮件...');
+    const warningSuccess = await sendEmail('warning', testTask);
+    
+    console.log('尝试发送最终邮件...');
+    const finalSuccess = await sendEmail('final', testTask);
+    
+    res.json({ 
+      success: warningSuccess && finalSuccess,
+      warning: warningSuccess ? '✅ 警告邮件发送成功' : '❌ 警告邮件发送失败',
+      final: finalSuccess ? '✅ 最终邮件发送成功' : '❌ 最终邮件发送失败'
+    });
+  } catch (error) {
+    console.error('测试邮件接口出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 启动服务器
 app.listen(port, '0.0.0.0', () => {
   console.log(`后端服务运行在端口 ${port}`);
