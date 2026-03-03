@@ -20,7 +20,7 @@ let db;
     driver: sqlite3.Database
   });
 
-  // 创建 tasks 表
+  // 创建 tasks 表（包含验证码字段）
   await db.exec(`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
@@ -33,82 +33,146 @@ let db;
       finalEmail TEXT NOT NULL,
       warningMessage TEXT,
       finalMessage TEXT,
-      lastCheckin INTEGER NOT NULL,  -- 时间戳（毫秒）
+      lastCheckin INTEGER NOT NULL,
       created INTEGER NOT NULL,
       warningSent INTEGER DEFAULT 0,
       finalSent INTEGER DEFAULT 0,
-      warningTriggeredAt INTEGER       -- 记录警告触发的时间戳（毫秒）
+      warningTriggeredAt INTEGER,
+      verification_code TEXT,
+      code_expires INTEGER
     )
   `);
   console.log('数据库初始化完成');
 })();
 
 // ---------- 辅助函数：发送邮件 ----------
-async function sendEmail(type, task) {
-  console.log('环境变量检查:');
-  console.log('- USER_ID 是否存在:', !!process.env.USER_ID);
-  console.log('- PRIVATE_KEY 是否存在:', !!process.env.PRIVATE_KEY);
-  console.log('- SERVICE_ID 是否存在:', !!process.env.SERVICE_ID);
-  console.log('- WARNING_TEMPLATE_ID 是否存在:', !!process.env.WARNING_TEMPLATE_ID);
-  console.log('- FINAL_TEMPLATE_ID 是否存在:', !!process.env.FINAL_TEMPLATE_ID);
-  console.log('- FROM_EMAIL 是否存在:', !!process.env.FROM_EMAIL);
+async function sendEmail(type, toEmail, subject, message, taskName = '') {
+  console.log('环境变量检查:', {
+    USER_ID: !!process.env.USER_ID,
+    PRIVATE_KEY: !!process.env.PRIVATE_KEY,
+    SERVICE_ID: !!process.env.SERVICE_ID,
+    FROM_EMAIL: !!process.env.FROM_EMAIL
+  });
 
   const templateId = type === 'warning' 
     ? process.env.WARNING_TEMPLATE_ID 
-    : process.env.FINAL_TEMPLATE_ID;
-  const toEmail = type === 'warning' ? task.warningEmail : task.finalEmail;
-  const message = type === 'warning' ? task.warningMessage : task.finalMessage;
+    : (type === 'final' ? process.env.FINAL_TEMPLATE_ID : process.env.WARNING_TEMPLATE_ID); // 简单复用
 
   const payload = {
     service_id: process.env.SERVICE_ID,
     template_id: templateId,
-    user_id: process.env.USER_ID,               // 对应 Render 的 USER_ID
+    user_id: process.env.USER_ID,
     template_params: {
       to_email: toEmail,
       from_email: process.env.FROM_EMAIL,
-      task_name: task.name,
-      message: message
+      task_name: taskName,
+      message: message,
+      subject: subject
     },
-    accessToken: process.env.PRIVATE_KEY         // 对应 Render 的 PRIVATE_KEY
+    accessToken: process.env.PRIVATE_KEY
   };
 
   try {
     const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', payload, {
       headers: { 'Content-Type': 'application/json' }
     });
-    console.log(`邮件发送成功 (${type}): ${task.id}`);
+    console.log(`邮件发送成功: ${toEmail}`);
     return true;
   } catch (error) {
     console.error('邮件发送失败详细错误:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status,
-      headers: error.response?.headers
+      status: error.response?.status
     });
     return false;
   }
 }
 
-// ---------- 核心函数：检查单个任务状态并处理邮件 ----------
+// ---------- 生成随机验证码 ----------
+function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// ---------- 验证码接口 ----------
+app.post('/api/send-verification-code', async (req, res) => {
+  const { taskId } = req.body;
+  if (!taskId) return res.status(400).json({ error: '缺少 taskId' });
+
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', taskId);
+    if (!task) return res.status(404).json({ error: '任务不存在' });
+
+    const code = generateVerificationCode();
+    const expires = Date.now() + 5 * 60 * 1000; // 5分钟
+    await db.run(
+      'UPDATE tasks SET verification_code = ?, code_expires = ? WHERE id = ?',
+      [code, expires, taskId]
+    );
+
+    const success = await sendEmail(
+      'verification',
+      task.warningEmail,
+      '【心灵保险】编辑终止通知验证码',
+      `您的验证码是：${code}，有效期5分钟。`,
+      task.name
+    );
+
+    if (success) res.json({ success: true, message: '验证码已发送' });
+    else res.status(500).json({ error: '验证码发送失败' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/verify-code', async (req, res) => {
+  const { taskId, code } = req.body;
+  if (!taskId || !code) return res.status(400).json({ error: '缺少参数' });
+
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', taskId);
+    if (!task) return res.status(404).json({ error: '任务不存在' });
+    if (!task.verification_code || !task.code_expires) {
+      return res.status(400).json({ error: '未请求验证码或验证码已过期' });
+    }
+    if (Date.now() > task.code_expires) {
+      return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    }
+    if (task.verification_code !== code) {
+      return res.status(400).json({ error: '验证码错误' });
+    }
+    await db.run('UPDATE tasks SET verification_code = NULL, code_expires = NULL WHERE id = ?', taskId);
+    res.json({ success: true, message: '验证成功' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- 核心函数：检查单个任务状态并处理邮件（正式版：以天为单位）----------
 async function checkTask(task) {
   const now = Date.now();
   const diffMs = now - task.lastCheckin;
-  const virtualDays = Math.floor(diffMs / (60 * 1000)); // 1分钟 = 1天（测试用）
+  const daysSince = Math.floor(diffMs / (24 * 60 * 60 * 1000)); // 真实天数
 
   const cycleDays = task.cycleDays;
   const warningDays = task.warningDays;
   const finalDays = task.finalDays;
 
-  if (virtualDays <= cycleDays) {
-    return; // 正常状态
-  }
+  if (daysSince <= cycleDays) return; // 正常
 
-  const overdueDays = virtualDays - cycleDays;
+  const overdueDays = daysSince - cycleDays;
 
   // 警告状态
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
-      const success = await sendEmail('warning', task);
+      const success = await sendEmail(
+        'warning',
+        task.warningEmail,
+        '【心灵保险】打卡警告',
+        task.warningMessage,
+        task.name
+      );
       if (success) {
         await db.run(
           'UPDATE tasks SET warningSent = 1, warningTriggeredAt = ? WHERE id = ?',
@@ -121,9 +185,15 @@ async function checkTask(task) {
   else if (overdueDays >= warningDays + finalDays) {
     if (task.warningTriggeredAt) {
       const finalDiffMs = now - task.warningTriggeredAt;
-      const finalVirtualDays = Math.floor(finalDiffMs / (60 * 1000));
-      if (finalVirtualDays >= finalDays && !task.finalSent) {
-        const success = await sendEmail('final', task);
+      const finalDaysSince = Math.floor(finalDiffMs / (24 * 60 * 60 * 1000));
+      if (finalDaysSince >= finalDays && !task.finalSent) {
+        const success = await sendEmail(
+          'final',
+          task.finalEmail,
+          '【心灵保险】任务终止通知',
+          task.finalMessage,
+          task.name
+        );
         if (success) {
           await db.run('UPDATE tasks SET finalSent = 1 WHERE id = ?', [task.id]);
         }
@@ -131,7 +201,13 @@ async function checkTask(task) {
     } else {
       // 没有 warningTriggeredAt（可能直接达到最终），按原逻辑处理
       if (!task.finalSent) {
-        const success = await sendEmail('final', task);
+        const success = await sendEmail(
+          'final',
+          task.finalEmail,
+          '【心灵保险】任务终止通知',
+          task.finalMessage,
+          task.name
+        );
         if (success) {
           await db.run('UPDATE tasks SET finalSent = 1 WHERE id = ?', [task.id]);
         }
@@ -140,10 +216,8 @@ async function checkTask(task) {
   }
 }
 
-// ---------- 定时任务：每小时运行一次 ----------
-// -------3月2日 21:32改进，从0****改为*****，意思一分钟检查一次
-// -------3月2日 22:02改回0****，一小时一次，否则浪费网络资源，今后要改为一天一次
-cron.schedule('0 * * * *', async () => {
+// ---------- 定时任务：每天下午13点运行一次 ----------
+cron.schedule('0 13 * * *', async () => {
   console.log('运行定时任务检查任务状态...');
   const tasks = await db.all('SELECT * FROM tasks');
   for (const task of tasks) {
@@ -243,16 +317,14 @@ app.get('/api/test-email', async (req, res) => {
   console.log('📧 收到测试邮件请求');
   const testTask = {
     name: '测试任务',
-    warningEmail: '2924773@qq.com',   // 请替换为你自己的测试邮箱
-    finalEmail: 'fanlitao@188.com',
+    warningEmail: 'your-email@example.com', // 请替换为你的测试邮箱
+    finalEmail: 'your-email@example.com',
     warningMessage: '这是一封测试警告邮件',
     finalMessage: '这是一封测试最终通知邮件'
   };
   try {
-    console.log('尝试发送警告邮件...');
-    const warningSuccess = await sendEmail('warning', testTask);
-    console.log('尝试发送最终邮件...');
-    const finalSuccess = await sendEmail('final', testTask);
+    const warningSuccess = await sendEmail('warning', testTask.warningEmail, '测试警告', testTask.warningMessage, testTask.name);
+    const finalSuccess = await sendEmail('final', testTask.finalEmail, '测试最终', testTask.finalMessage, testTask.name);
     res.json({ 
       success: warningSuccess && finalSuccess,
       warning: warningSuccess ? '✅ 警告邮件发送成功' : '❌ 警告邮件发送失败',
