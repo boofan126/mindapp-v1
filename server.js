@@ -20,11 +20,11 @@ let db;
     driver: sqlite3.Database
   });
 
-  // 创建 tasks 表（包含验证码字段）
+  // 创建 tasks 表（字段名改为 device_id）
   await db.exec(`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
-      user_id TEXT DEFAULT 'default',
+      device_id TEXT NOT NULL,
       name TEXT NOT NULL,
       cycleDays INTEGER NOT NULL,
       warningDays INTEGER NOT NULL,
@@ -56,12 +56,12 @@ async function sendEmail(type, toEmail, subject, message, taskName = '') {
 
   const templateId = type === 'warning' 
     ? process.env.WARNING_TEMPLATE_ID 
-    : (type === 'final' ? process.env.FINAL_TEMPLATE_ID : process.env.WARNING_TEMPLATE_ID); // 简单复用
+    : (type === 'final' ? process.env.FINAL_TEMPLATE_ID : process.env.WARNING_TEMPLATE_ID);
 
   const payload = {
     service_id: process.env.SERVICE_ID,
     template_id: templateId,
-    user_id: process.env.USER_ID,
+    user_id: process.env.USER_ID,  // 这是 EmailJS 的 user_id，保持不变
     template_params: {
       to_email: toEmail,
       from_email: process.env.FROM_EMAIL,
@@ -103,7 +103,7 @@ app.post('/api/send-verification-code', async (req, res) => {
     if (!task) return res.status(404).json({ error: '任务不存在' });
 
     const code = generateVerificationCode();
-    const expires = Date.now() + 5 * 60 * 1000; // 5分钟
+    const expires = Date.now() + 5 * 60 * 1000;
     await db.run(
       'UPDATE tasks SET verification_code = ?, code_expires = ? WHERE id = ?',
       [code, expires, taskId]
@@ -149,17 +149,17 @@ app.post('/api/verify-code', async (req, res) => {
   }
 });
 
-// ---------- 核心函数：检查单个任务状态并处理邮件（正式版：以天为单位）----------
+// ---------- 核心函数：检查单个任务状态并处理邮件 ----------
 async function checkTask(task) {
   const now = Date.now();
   const diffMs = now - task.lastCheckin;
-  const daysSince = Math.floor(diffMs / (24 * 60 * 60 * 1000)); // 真实天数
+  const daysSince = Math.floor(diffMs / (24 * 60 * 60 * 1000));
 
   const cycleDays = task.cycleDays;
   const warningDays = task.warningDays;
   const finalDays = task.finalDays;
 
-  if (daysSince <= cycleDays) return; // 正常
+  if (daysSince <= cycleDays) return;
 
   const overdueDays = daysSince - cycleDays;
 
@@ -181,7 +181,7 @@ async function checkTask(task) {
       }
     }
   }
-  // 最终状态（从警告触发时刻开始计时）
+  // 最终状态
   else if (overdueDays >= warningDays + finalDays) {
     if (task.warningTriggeredAt) {
       const finalDiffMs = now - task.warningTriggeredAt;
@@ -199,7 +199,6 @@ async function checkTask(task) {
         }
       }
     } else {
-      // 没有 warningTriggeredAt（可能直接达到最终），按原逻辑处理
       if (!task.finalSent) {
         const success = await sendEmail(
           'final',
@@ -227,10 +226,14 @@ cron.schedule('0 13 * * *', async () => {
 
 // ---------- API 路由 ----------
 
-// 获取所有任务
+// 获取指定设备的所有任务
 app.get('/api/tasks', async (req, res) => {
+  const deviceId = req.query.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ error: '缺少 deviceId 参数' });
+  }
   try {
-    const tasks = await db.all('SELECT * FROM tasks');
+    const tasks = await db.all('SELECT * FROM tasks WHERE device_id = ?', deviceId);
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -240,10 +243,13 @@ app.get('/api/tasks', async (req, res) => {
 // 创建新任务
 app.post('/api/tasks', async (req, res) => {
   const task = req.body;
+  if (!task.device_id) {
+    return res.status(400).json({ error: '缺少 device_id' });
+  }
   const now = Date.now();
   const newTask = {
     id: task.id || `task_${now}_${Math.random().toString(36).substr(2, 4)}`,
-    user_id: task.user_id || 'default',
+    device_id: task.device_id,
     name: task.name,
     cycleDays: task.cycleDays,
     warningDays: task.warningDays,
@@ -260,7 +266,7 @@ app.post('/api/tasks', async (req, res) => {
   };
   try {
     await db.run(
-      `INSERT INTO tasks (id, user_id, name, cycleDays, warningDays, finalDays, 
+      `INSERT INTO tasks (id, device_id, name, cycleDays, warningDays, finalDays, 
         warningEmail, finalEmail, warningMessage, finalMessage, lastCheckin, created,
         warningSent, finalSent, warningTriggeredAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -272,52 +278,77 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// 更新任务
+// 更新任务（需验证 deviceId）
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
+  const deviceId = req.query.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ error: '缺少 deviceId 参数' });
+  }
   const updates = req.body;
+  delete updates.device_id; // 不允许修改设备ID
   const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-  const values = [...Object.values(updates), id];
+  const values = [...Object.values(updates), id, deviceId];
   try {
-    await db.run(`UPDATE tasks SET ${setClause} WHERE id = ?`, values);
+    const result = await db.run(
+      `UPDATE tasks SET ${setClause} WHERE id = ? AND device_id = ?`,
+      values
+    );
+    if (result.changes === 0) {
+      return res.status(404).json({ error: '任务不存在或无权操作' });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 删除任务
+// 删除任务（需验证 deviceId）
 app.delete('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
+  const deviceId = req.query.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ error: '缺少 deviceId 参数' });
+  }
   try {
-    await db.run('DELETE FROM tasks WHERE id = ?', id);
+    const result = await db.run('DELETE FROM tasks WHERE id = ? AND device_id = ?', id, deviceId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: '任务不存在或无权操作' });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 手动打卡
+// 手动打卡（需验证 deviceId）
 app.post('/api/tasks/:id/checkin', async (req, res) => {
   const { id } = req.params;
+  const deviceId = req.query.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ error: '缺少 deviceId 参数' });
+  }
   const now = Date.now();
   try {
-    await db.run(
-      'UPDATE tasks SET lastCheckin = ?, warningSent = 0, finalSent = 0, warningTriggeredAt = NULL WHERE id = ?',
-      [now, id]
+    const result = await db.run(
+      'UPDATE tasks SET lastCheckin = ?, warningSent = 0, finalSent = 0, warningTriggeredAt = NULL WHERE id = ? AND device_id = ?',
+      [now, id, deviceId]
     );
+    if (result.changes === 0) {
+      return res.status(404).json({ error: '任务不存在或无权操作' });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 测试接口：手动触发发送测试邮件
+// 测试接口（不需要 deviceId）
 app.get('/api/test-email', async (req, res) => {
   console.log('📧 收到测试邮件请求');
   const testTask = {
     name: '测试任务',
-    warningEmail: 'your-email@example.com', // 请替换为你的测试邮箱
+    warningEmail: 'your-email@example.com',
     finalEmail: 'your-email@example.com',
     warningMessage: '这是一封测试警告邮件',
     finalMessage: '这是一封测试最终通知邮件'
