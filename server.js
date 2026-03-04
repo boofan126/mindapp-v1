@@ -1,8 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
-const { open } = require('sqlite');
+const { Pool } = require('pg'); // 引入 pg 库
 const cron = require('node-cron');
 const axios = require('axios');
 
@@ -12,41 +11,57 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// ---------- 连接 PostgreSQL ----------
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // Render 强制 SSL
+});
+
+// 添加这一块来验证连接
+pool.query('SELECT NOW() as pg_time', (err, res) => {
+  if (err) {
+    console.error('❌ PostgreSQL 连接失败，当前可能在使用 SQLite！错误信息：', err.message);
+  } else {
+    console.log('✅ 成功连接到 PostgreSQL，服务器时间：', res.rows[0].pg_time);
+  }
+});
+
+// ---------- 初始化数据库表 ----------
+async function initDB() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        "cycleDays" INTEGER NOT NULL,
+        "warningDays" INTEGER NOT NULL,
+        "finalDays" INTEGER NOT NULL,
+        "warningEmail" TEXT NOT NULL,
+        "finalEmail" TEXT NOT NULL,
+        "warningMessage" TEXT,
+        "finalMessage" TEXT,
+        "lastCheckin" BIGINT NOT NULL,
+        created BIGINT NOT NULL,
+        "warningSent" INTEGER DEFAULT 0,
+        "finalSent" INTEGER DEFAULT 0,
+        "warningTriggeredAt" BIGINT,
+        verification_code TEXT,
+        code_expires BIGINT
+      )
+    `);
+    console.log('数据库初始化完成');
+  } catch (err) {
+    console.error('数据库初始化失败', err);
+  } finally {
+    client.release();
+  }
+}
+initDB();
+
 // ---------- 内存存储验证码（邮箱 -> { code, expires }）----------
 const verificationCodes = new Map();
-
-// ---------- 初始化 SQLite 数据库 ----------
-let db;
-(async () => {
-  db = await open({
-    filename: './database.sqlite',
-    driver: sqlite3.Database
-  });
-
-  // 创建 tasks 表（增加 user_email 字段用于数据隔离）
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id TEXT PRIMARY KEY,
-      user_email TEXT NOT NULL,      -- 新增：任务所属邮箱
-      name TEXT NOT NULL,
-      cycleDays INTEGER NOT NULL,
-      warningDays INTEGER NOT NULL,
-      finalDays INTEGER NOT NULL,
-      warningEmail TEXT NOT NULL,
-      finalEmail TEXT NOT NULL,
-      warningMessage TEXT,
-      finalMessage TEXT,
-      lastCheckin INTEGER NOT NULL,
-      created INTEGER NOT NULL,
-      warningSent INTEGER DEFAULT 0,
-      finalSent INTEGER DEFAULT 0,
-      warningTriggeredAt INTEGER,
-      verification_code TEXT,
-      code_expires INTEGER
-    )
-  `);
-  console.log('数据库初始化完成');
-})();
 
 // ---------- 辅助函数：发送邮件（保持不变）----------
 async function sendEmail(type, toEmail, subject, message, taskName = '') {
@@ -102,7 +117,7 @@ app.post('/api/send-login-code', async (req, res) => {
   if (!email) return res.status(400).json({ error: '邮箱不能为空' });
 
   const code = generateVerificationCode();
-  const expires = Date.now() + 5 * 60 * 1000; // 5分钟有效
+  const expires = Date.now() + 5 * 60 * 1000;
   verificationCodes.set(email, { code, expires });
 
   const success = await sendEmail(
@@ -137,7 +152,7 @@ app.post('/api/verify-login-code', (req, res) => {
   res.json({ success: true, message: '验证成功' });
 });
 
-// ---------- 核心函数：检查单个任务状态并处理邮件（不变）----------
+// ---------- 核心函数：检查单个任务状态并处理邮件 ----------
 async function checkTask(task) {
   const now = Date.now();
   const diffMs = now - task.lastCheckin;
@@ -151,7 +166,6 @@ async function checkTask(task) {
 
   const overdueDays = daysSince - cycleDays;
 
-  // 警告状态
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
       const success = await sendEmail(
@@ -162,15 +176,13 @@ async function checkTask(task) {
         task.name
       );
       if (success) {
-        await db.run(
-          'UPDATE tasks SET warningSent = 1, warningTriggeredAt = ? WHERE id = ?',
+        await pool.query(
+          'UPDATE tasks SET "warningSent" = 1, "warningTriggeredAt" = $1 WHERE id = $2',
           [now, task.id]
         );
       }
     }
-  }
-  // 最终状态
-  else if (overdueDays >= warningDays + finalDays) {
+  } else if (overdueDays >= warningDays + finalDays) {
     if (task.warningTriggeredAt) {
       const finalDiffMs = now - task.warningTriggeredAt;
       const finalDaysSince = Math.floor(finalDiffMs / (24 * 60 * 60 * 1000));
@@ -183,7 +195,10 @@ async function checkTask(task) {
           task.name
         );
         if (success) {
-          await db.run('UPDATE tasks SET finalSent = 1 WHERE id = ?', [task.id]);
+          await pool.query(
+            'UPDATE tasks SET "finalSent" = 1 WHERE id = $1',
+            [task.id]
+          );
         }
       }
     } else {
@@ -196,7 +211,10 @@ async function checkTask(task) {
           task.name
         );
         if (success) {
-          await db.run('UPDATE tasks SET finalSent = 1 WHERE id = ?', [task.id]);
+          await pool.query(
+            'UPDATE tasks SET "finalSent" = 1 WHERE id = $1',
+            [task.id]
+          );
         }
       }
     }
@@ -206,29 +224,33 @@ async function checkTask(task) {
 // ---------- 定时任务：每天下午13点运行一次 ----------
 cron.schedule('0 13 * * *', async () => {
   console.log('运行定时任务检查任务状态...');
-  const tasks = await db.all('SELECT * FROM tasks');
-  for (const task of tasks) {
-    await checkTask(task);
+  try {
+    const { rows: tasks } = await pool.query('SELECT * FROM tasks');
+    for (const task of tasks) {
+      await checkTask(task);
+    }
+  } catch (err) {
+    console.error('定时任务执行失败', err);
   }
 });
 
 // ---------- API 路由（所有操作都需要邮箱参数）----------
 
-// 获取当前用户的所有任务（需要邮箱）
+// 获取当前用户的所有任务
 app.get('/api/tasks', async (req, res) => {
   const email = req.query.email;
   if (!email) {
     return res.status(400).json({ error: '缺少 email 参数' });
   }
   try {
-    const tasks = await db.all('SELECT * FROM tasks WHERE user_email = ?', email);
-    res.json(tasks);
+    const { rows } = await pool.query('SELECT * FROM tasks WHERE user_email = $1', [email]);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 创建新任务（需要邮箱）
+// 创建新任务
 app.post('/api/tasks', async (req, res) => {
   const task = req.body;
   if (!task.user_email) {
@@ -253,11 +275,12 @@ app.post('/api/tasks', async (req, res) => {
     warningTriggeredAt: null
   };
   try {
-    await db.run(
-      `INSERT INTO tasks (id, user_email, name, cycleDays, warningDays, finalDays, 
-        warningEmail, finalEmail, warningMessage, finalMessage, lastCheckin, created,
-        warningSent, finalSent, warningTriggeredAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    await pool.query(
+      `INSERT INTO tasks (
+        id, user_email, name, "cycleDays", "warningDays", "finalDays", 
+        "warningEmail", "finalEmail", "warningMessage", "finalMessage", 
+        "lastCheckin", created, "warningSent", "finalSent", "warningTriggeredAt"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
       Object.values(newTask)
     );
     res.json(newTask);
@@ -266,7 +289,7 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// 更新任务（需要邮箱，且只能更新自己的任务）
+// 更新任务
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
@@ -274,17 +297,20 @@ app.put('/api/tasks/:id', async (req, res) => {
     return res.status(400).json({ error: '缺少 email 参数' });
   }
   const updates = req.body;
-  // 不允许修改 user_email 和 warningEmail（由前端保证不传）
   delete updates.user_email;
   delete updates.warningEmail;
-  const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-  const values = [...Object.values(updates), id, email];
+
+  // 动态构建 SET 子句
+  const setClause = Object.keys(updates).map((key, index) => `"${key}" = $${index + 1}`).join(', ');
+  const values = Object.values(updates);
+  values.push(id, email);
+
   try {
-    const result = await db.run(
-      `UPDATE tasks SET ${setClause} WHERE id = ? AND user_email = ?`,
+    const result = await pool.query(
+      `UPDATE tasks SET ${setClause} WHERE id = $${values.length - 1} AND user_email = $${values.length}`,
       values
     );
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: '任务不存在或无权操作' });
     }
     res.json({ success: true });
@@ -293,7 +319,7 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// 删除任务（需要邮箱）
+// 删除任务
 app.delete('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
@@ -301,8 +327,8 @@ app.delete('/api/tasks/:id', async (req, res) => {
     return res.status(400).json({ error: '缺少 email 参数' });
   }
   try {
-    const result = await db.run('DELETE FROM tasks WHERE id = ? AND user_email = ?', id, email);
-    if (result.changes === 0) {
+    const result = await pool.query('DELETE FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: '任务不存在或无权操作' });
     }
     res.json({ success: true });
@@ -311,7 +337,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// 手动打卡（需要邮箱）
+// 手动打卡
 app.post('/api/tasks/:id/checkin', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
@@ -320,11 +346,12 @@ app.post('/api/tasks/:id/checkin', async (req, res) => {
   }
   const now = Date.now();
   try {
-    const result = await db.run(
-      'UPDATE tasks SET lastCheckin = ?, warningSent = 0, finalSent = 0, warningTriggeredAt = NULL WHERE id = ? AND user_email = ?',
+    const result = await pool.query(
+      `UPDATE tasks SET "lastCheckin" = $1, "warningSent" = 0, "finalSent" = 0, "warningTriggeredAt" = NULL 
+       WHERE id = $2 AND user_email = $3`,
       [now, id, email]
     );
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: '任务不存在或无权操作' });
     }
     res.json({ success: true });
@@ -333,7 +360,7 @@ app.post('/api/tasks/:id/checkin', async (req, res) => {
   }
 });
 
-// 测试接口（不需要邮箱，仅用于调试）
+// 测试接口（不需要邮箱）
 app.get('/api/test-email', async (req, res) => {
   console.log('📧 收到测试邮件请求');
   const testTask = {
@@ -357,7 +384,7 @@ app.get('/api/test-email', async (req, res) => {
   }
 });
 
-// 健康检查接口（用于唤醒）
+// 健康检查接口
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
