@@ -222,13 +222,13 @@ async function checkTask(task) {
 }
 // ---8日加上日志---
 console.log('尝试注册定时任务...');
-cron.schedule('0 7 * * *', async () => {
+cron.schedule('0 1 * * *', async () => {
   console.log('运行定时任务检查任务状态...');
   // ...
 });
 
 // ---------- 定时任务：每天下午13点运行一次 ----------
-cron.schedule('0 7 * * *', async () => {  // UTC时间
+cron.schedule('0 1 * * *', async () => {  // UTC时间
   console.log('运行定时任务检查任务状态...');
   try {
     const { rows: tasks } = await pool.query('SELECT * FROM tasks');
