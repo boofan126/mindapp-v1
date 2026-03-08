@@ -228,7 +228,7 @@ cron.schedule('0 13 * * *', async () => {
 });
 
 // ---------- 定时任务：每天下午13点运行一次 ----------
-cron.schedule('0 13 * * *', async () => {
+cron.schedule('0 6 * * *', async () => {  // UTC时间
   console.log('运行定时任务检查任务状态...');
   try {
     const { rows: tasks } = await pool.query('SELECT * FROM tasks');
