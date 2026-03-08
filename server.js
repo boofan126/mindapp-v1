@@ -220,6 +220,12 @@ async function checkTask(task) {
     }
   }
 }
+// ---8日加上日志---
+console.log('尝试注册定时任务...');
+cron.schedule('0 13 * * *', async () => {
+  console.log('运行定时任务检查任务状态...');
+  // ...
+});
 
 // ---------- 定时任务：每天下午13点运行一次 ----------
 cron.schedule('0 13 * * *', async () => {
@@ -380,6 +386,29 @@ app.get('/api/test-email', async (req, res) => {
     });
   } catch (error) {
     console.error('测试邮件接口出错:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 手动触发任务检查（用于调试）
+app.get('/api/trigger-check', async (req, res) => {
+  console.log('🔧 手动触发任务检查开始');
+  try {
+    const { rows: tasks } = await pool.query('SELECT * FROM tasks');
+    console.log(`找到 ${tasks.length} 个任务`);
+    
+    for (const task of tasks) {
+      // 复用你现有的 checkTask 函数
+      await checkTask(task);
+    }
+    
+    console.log('🔧 手动触发任务检查完成');
+    res.json({ 
+      success: true, 
+      message: `检查完成，处理了 ${tasks.length} 个任务` 
+    });
+  } catch (error) {
+    console.error('手动触发失败:', error);
     res.status(500).json({ error: error.message });
   }
 });
