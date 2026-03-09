@@ -1,9 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg'); // 引入 pg 库
+const { Pool } = require('pg');
 const cron = require('node-cron');
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,19 +14,10 @@ app.use(express.json());
 // ---------- 连接 PostgreSQL ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Render 强制 SSL
+  ssl: { rejectUnauthorized: false }
 });
 
-// 添加这一块来验证连接
-pool.query('SELECT NOW() as pg_time', (err, res) => {
-  if (err) {
-    console.error('❌ PostgreSQL 连接失败，当前可能在使用 SQLite！错误信息：', err.message);
-  } else {
-    console.log('✅ 成功连接到 PostgreSQL，服务器时间：', res.rows[0].pg_time);
-  }
-});
-
-// ---------- 初始化数据库表 ----------
+// ---------- 初始化数据库表（增加人工确认相关字段）----------
 async function initDB() {
   const client = await pool.connect();
   try {
@@ -48,7 +39,10 @@ async function initDB() {
         "finalSent" INTEGER DEFAULT 0,
         "warningTriggeredAt" BIGINT,
         verification_code TEXT,
-        code_expires BIGINT
+        code_expires BIGINT,
+        "needHumanConfirm" INTEGER DEFAULT 0,   -- 新增：是否需要人工确认（0=否，1=是）
+        "contactPhone" TEXT,                     -- 新增：联系电话
+        "customerNotified" INTEGER DEFAULT 0     -- 新增：是否已通知客服
       )
     `);
     console.log('数据库初始化完成');
@@ -60,55 +54,50 @@ async function initDB() {
 }
 initDB();
 
+// ---------- 配置 Nodemailer 发件器（使用 QQ 邮箱）----------
+const transporter = nodemailer.createTransport({
+  host: 'smtp.qq.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,      // 你的 QQ 邮箱
+    pass: process.env.SMTP_PASS        // 你的 QQ 邮箱授权码
+  }
+});
+
+// 验证 SMTP 连接
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('SMTP 连接失败:', error);
+  } else {
+    console.log('SMTP 服务器已就绪');
+  }
+});
+
 // ---------- 内存存储验证码（邮箱 -> { code, expires }）----------
 const verificationCodes = new Map();
 
-// ---------- 辅助函数：发送邮件（保持不变）----------
-async function sendEmail(type, toEmail, subject, message, taskName = '') {
-  console.log('环境变量检查:', {
-    USER_ID: !!process.env.USER_ID,
-    PRIVATE_KEY: !!process.env.PRIVATE_KEY,
-    SERVICE_ID: !!process.env.SERVICE_ID,
-    FROM_EMAIL: !!process.env.FROM_EMAIL
-  });
-
-  const templateId = type === 'warning' 
-    ? process.env.WARNING_TEMPLATE_ID 
-    : (type === 'final' ? process.env.FINAL_TEMPLATE_ID : process.env.WARNING_TEMPLATE_ID);
-
-  const payload = {
-    service_id: process.env.SERVICE_ID,
-    template_id: templateId,
-    user_id: process.env.USER_ID,
-    template_params: {
-      to_email: toEmail,
-      from_email: process.env.FROM_EMAIL,
-      task_name: taskName,
-      message: message,
-      subject: subject
-    },
-    accessToken: process.env.PRIVATE_KEY
-  };
-
-  try {
-    const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', payload, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    console.log(`邮件发送成功: ${toEmail}`);
-    return true;
-  } catch (error) {
-    console.error('邮件发送失败详细错误:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    return false;
-  }
-}
-
-// ---------- 生成随机验证码 ----------
+// ---------- 辅助函数：生成随机验证码 ----------
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// ---------- 通用邮件发送函数（使用 Nodemailer）----------
+async function sendMail({ to, subject, html, text }) {
+  const mailOptions = {
+    from: `"心灵保险" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    ...(html ? { html } : { text })
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`邮件发送成功: ${to}`);
+    return true;
+  } catch (error) {
+    console.error('邮件发送失败:', error);
+    return false;
+  }
 }
 
 // ---------- 发送登录验证码 ----------
@@ -120,12 +109,11 @@ app.post('/api/send-login-code', async (req, res) => {
   const expires = Date.now() + 5 * 60 * 1000;
   verificationCodes.set(email, { code, expires });
 
-  const success = await sendEmail(
-    'login',
-    email,
-    '【心灵保险】登录验证码',
-    `您的登录验证码是：${code}，有效期5分钟。`
-  );
+  const success = await sendMail({
+    to: email,
+    subject: '【心灵保险】登录验证码',
+    text: `您的登录验证码是：${code}，有效期5分钟。`
+  });
 
   if (success) {
     res.json({ success: true, message: '验证码已发送' });
@@ -152,7 +140,7 @@ app.post('/api/verify-login-code', (req, res) => {
   res.json({ success: true, message: '验证成功' });
 });
 
-// ---------- 核心函数：检查单个任务状态并处理邮件 ----------
+// ---------- 核心函数：检查单个任务状态并处理邮件（含人工确认逻辑）----------
 async function checkTask(task) {
   const now = Date.now();
   const diffMs = now - task.lastCheckin;
@@ -166,15 +154,14 @@ async function checkTask(task) {
 
   const overdueDays = daysSince - cycleDays;
 
+  // 警告状态（始终自动发送）
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
-      const success = await sendEmail(
-        'warning',
-        task.warningEmail,
-        '【心灵保险】打卡警告',
-        task.warningMessage,
-        task.name
-      );
+      const success = await sendMail({
+        to: task.warningEmail,
+        subject: '【心灵保险】打卡警告',
+        text: task.warningMessage || `您已连续 ${overdueDays} 天未打卡，请及时打卡。`
+      });
       if (success) {
         await pool.query(
           'UPDATE tasks SET "warningSent" = 1, "warningTriggeredAt" = $1 WHERE id = $2',
@@ -182,34 +169,50 @@ async function checkTask(task) {
         );
       }
     }
-  } else if (overdueDays >= warningDays + finalDays) {
-    if (task.warningTriggeredAt) {
-      const finalDiffMs = now - task.warningTriggeredAt;
-      const finalDaysSince = Math.floor(finalDiffMs / (24 * 60 * 60 * 1000));
-      if (finalDaysSince >= finalDays && !task.finalSent) {
-        const success = await sendEmail(
-          'final',
-          task.finalEmail,
-          '【心灵保险】任务终止通知',
-          task.finalMessage,
-          task.name
-        );
+    return;
+  }
+
+  // 终止状态（根据是否需要人工确认分支）
+  if (overdueDays >= warningDays + finalDays) {
+    // 如果任务需要人工确认
+    if (task.needHumanConfirm) {
+      // 尚未通知客服则发送客服通知邮件
+      if (!task.customerNotified) {
+        // 构建客服邮件内容（客服邮箱设为系统发件邮箱，或指定客服邮箱）
+        const customerEmail = process.env.SMTP_USER; // 这里使用发件邮箱作为客服邮箱
+        const contactPhone = task.contactPhone || '未提供';
+        const mailContent = `
+          任务 "${task.name}" 已到达终止条件，需要人工确认。
+          - 用户邮箱：${task.user_email}
+          - 监督人邮箱：${task.finalEmail}
+          - 联系电话：${contactPhone}
+          - 任务详情：周期 ${cycleDays} 天，警告 ${warningDays} 天，终止 ${finalDays} 天
+          - 最后打卡时间：${new Date(task.lastCheckin).toLocaleString()}
+          请尽快联系用户确认，确认后访问以下链接手动发送终止通知：
+          ${process.env.BASE_URL}/api/customer/send-final/${task.id}  (需 POST 请求)
+        `;
+        const success = await sendMail({
+          to: customerEmail,
+          subject: '【心灵保险】客服人工确认提醒',
+          text: mailContent
+        });
         if (success) {
           await pool.query(
-            'UPDATE tasks SET "finalSent" = 1 WHERE id = $1',
+            'UPDATE tasks SET "customerNotified" = 1 WHERE id = $1',
             [task.id]
           );
         }
       }
+      // 客服通知后，不发送终止邮件，等待客服手动触发
+      return;
     } else {
+      // 无需人工确认，直接发送终止邮件
       if (!task.finalSent) {
-        const success = await sendEmail(
-          'final',
-          task.finalEmail,
-          '【心灵保险】任务终止通知',
-          task.finalMessage,
-          task.name
-        );
+        const success = await sendMail({
+          to: task.finalEmail,
+          subject: '【心灵保险】任务终止通知',
+          text: task.finalMessage || `您已连续 ${overdueDays} 天未打卡，任务已终止。`
+        });
         if (success) {
           await pool.query(
             'UPDATE tasks SET "finalSent" = 1 WHERE id = $1',
@@ -220,16 +223,10 @@ async function checkTask(task) {
     }
   }
 }
-// ---8日加上日志---
-console.log('尝试注册定时任务...');
-cron.schedule('0 1 * * *', async () => {
-  console.log('运行定时任务检查任务状态...');
-  // ...
-});
 
-// ---------- 定时任务：每天下午13点运行一次 ----------
-cron.schedule('0 1 * * *', async () => {  // UTC时间
-  console.log('运行定时任务检查任务状态...');
+// ---------- 定时任务：每天上午9点运行一次（UTC 1:00）----------
+cron.schedule('0 1 * * *', async () => {
+  console.log(`⏰ 定时任务触发：${new Date().toISOString()}`);
   try {
     const { rows: tasks } = await pool.query('SELECT * FROM tasks');
     for (const task of tasks) {
@@ -240,14 +237,12 @@ cron.schedule('0 1 * * *', async () => {  // UTC时间
   }
 });
 
-// ---------- API 路由（所有操作都需要邮箱参数）----------
+// ---------- API 路由 ----------
 
 // 获取当前用户的所有任务
 app.get('/api/tasks', async (req, res) => {
   const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: '缺少 email 参数' });
-  }
+  if (!email) return res.status(400).json({ error: '缺少 email 参数' });
   try {
     const { rows } = await pool.query('SELECT * FROM tasks WHERE user_email = $1', [email]);
     res.json(rows);
@@ -256,12 +251,10 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// 创建新任务
+// 创建新任务（支持人工确认字段）
 app.post('/api/tasks', async (req, res) => {
   const task = req.body;
-  if (!task.user_email) {
-    return res.status(400).json({ error: '缺少 user_email' });
-  }
+  if (!task.user_email) return res.status(400).json({ error: '缺少 user_email' });
   const now = Date.now();
   const newTask = {
     id: task.id || `task_${now}_${Math.random().toString(36).substr(2, 4)}`,
@@ -278,15 +271,19 @@ app.post('/api/tasks', async (req, res) => {
     created: now,
     warningSent: 0,
     finalSent: 0,
-    warningTriggeredAt: null
+    warningTriggeredAt: null,
+    needHumanConfirm: task.needHumanConfirm ? 1 : 0,
+    contactPhone: task.contactPhone || null,
+    customerNotified: 0
   };
   try {
     await pool.query(
       `INSERT INTO tasks (
         id, user_email, name, "cycleDays", "warningDays", "finalDays", 
         "warningEmail", "finalEmail", "warningMessage", "finalMessage", 
-        "lastCheckin", created, "warningSent", "finalSent", "warningTriggeredAt"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        "lastCheckin", created, "warningSent", "finalSent", "warningTriggeredAt",
+        "needHumanConfirm", "contactPhone", "customerNotified"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
       Object.values(newTask)
     );
     res.json(newTask);
@@ -295,18 +292,15 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// 更新任务
+// 更新任务（支持人工确认字段）
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: '缺少 email 参数' });
-  }
+  if (!email) return res.status(400).json({ error: '缺少 email 参数' });
   const updates = req.body;
   delete updates.user_email;
   delete updates.warningEmail;
 
-  // 动态构建 SET 子句
   const setClause = Object.keys(updates).map((key, index) => `"${key}" = $${index + 1}`).join(', ');
   const values = Object.values(updates);
   values.push(id, email);
@@ -316,9 +310,7 @@ app.put('/api/tasks/:id', async (req, res) => {
       `UPDATE tasks SET ${setClause} WHERE id = $${values.length - 1} AND user_email = $${values.length}`,
       values
     );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: '任务不存在或无权操作' });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: '任务不存在或无权操作' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -329,14 +321,10 @@ app.put('/api/tasks/:id', async (req, res) => {
 app.delete('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: '缺少 email 参数' });
-  }
+  if (!email) return res.status(400).json({ error: '缺少 email 参数' });
   try {
     const result = await pool.query('DELETE FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: '任务不存在或无权操作' });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: '任务不存在或无权操作' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -347,78 +335,177 @@ app.delete('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks/:id/checkin', async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: '缺少 email 参数' });
-  }
+  if (!email) return res.status(400).json({ error: '缺少 email 参数' });
   const now = Date.now();
   try {
     const result = await pool.query(
-      `UPDATE tasks SET "lastCheckin" = $1, "warningSent" = 0, "finalSent" = 0, "warningTriggeredAt" = NULL 
+      `UPDATE tasks SET "lastCheckin" = $1, "warningSent" = 0, "finalSent" = 0, "warningTriggeredAt" = NULL, "customerNotified" = 0
        WHERE id = $2 AND user_email = $3`,
       [now, id, email]
     );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: '任务不存在或无权操作' });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: '任务不存在或无权操作' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 测试接口（不需要邮箱）
-app.get('/api/test-email', async (req, res) => {
-  console.log('📧 收到测试邮件请求');
-  const testTask = {
-    name: '测试任务',
-    warningEmail: 'your-email@example.com',
-    finalEmail: 'your-email@example.com',
-    warningMessage: '这是一封测试警告邮件',
-    finalMessage: '这是一封测试最终通知邮件'
-  };
+// ---------- 新增：自动打卡（每天首次，为当前用户所有任务打卡）----------
+app.post('/api/auto-checkin', async (req, res) => {
+  const email = req.query.email;
+  if (!email) return res.status(400).json({ error: '缺少 email 参数' });
+  const now = Date.now();
   try {
-    const warningSuccess = await sendEmail('warning', testTask.warningEmail, '测试警告', testTask.warningMessage, testTask.name);
-    const finalSuccess = await sendEmail('final', testTask.finalEmail, '测试最终', testTask.finalMessage, testTask.name);
-    res.json({ 
-      success: warningSuccess && finalSuccess,
-      warning: warningSuccess ? '✅ 警告邮件发送成功' : '❌ 警告邮件发送失败',
-      final: finalSuccess ? '✅ 最终邮件发送成功' : '❌ 最终邮件发送失败'
-    });
-  } catch (error) {
-    console.error('测试邮件接口出错:', error);
-    res.status(500).json({ error: error.message });
+    const result = await pool.query(
+      `UPDATE tasks SET "lastCheckin" = $1, "warningSent" = 0, "finalSent" = 0, "warningTriggeredAt" = NULL, "customerNotified" = 0 WHERE user_email = $2`,
+      [now, email]
+    );
+    console.log(`用户 ${email} 自动打卡成功，更新了 ${result.rowCount} 个任务`);
+    res.json({ success: true, message: '自动打卡成功' });
+  } catch (err) {
+    console.error('自动打卡失败:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// 手动触发任务检查（用于调试）
-app.get('/api/trigger-check', async (req, res) => {
-  console.log('🔧 手动触发任务检查开始');
+// ---------- 客服接口：获取待确认任务列表（需简单鉴权，使用固定 token）----------
+app.get('/api/customer/pending-tasks', async (req, res) => {
+  const token = req.query.token;
+  if (token !== process.env.CUSTOMER_TOKEN) {
+    return res.status(403).json({ error: '无权访问' });
+  }
   try {
-    const { rows: tasks } = await pool.query('SELECT * FROM tasks');
-    console.log(`找到 ${tasks.length} 个任务`);
-    
-    for (const task of tasks) {
-      // 复用你现有的 checkTask 函数
-      await checkTask(task);
+    const { rows } = await pool.query(
+      `SELECT id, user_email, name, "finalEmail", "contactPhone", "lastCheckin"
+       FROM tasks
+       WHERE "needHumanConfirm" = 1 AND "finalSent" = 0 AND "customerNotified" = 1`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 客服接口：手动发送终止通知
+app.post('/api/customer/send-final/:taskId', async (req, res) => {
+  const token = req.query.token;
+  if (token !== process.env.CUSTOMER_TOKEN) {
+    return res.status(403).json({ error: '无权访问' });
+  }
+  const { taskId } = req.params;
+  try {
+    const { rows } = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    if (rows.length === 0) return res.status(404).json({ error: '任务不存在' });
+    const task = rows[0];
+    if (!task.needHumanConfirm || task.finalSent) {
+      return res.status(400).json({ error: '该任务无需人工确认或已发送终止通知' });
     }
-    
-    console.log('🔧 手动触发任务检查完成');
-    res.json({ 
-      success: true, 
-      message: `检查完成，处理了 ${tasks.length} 个任务` 
+    const success = await sendMail({
+      to: task.finalEmail,
+      subject: '【心灵保险】任务终止通知',
+      text: task.finalMessage || `您已连续多日未打卡，任务已终止。`
     });
-  } catch (error) {
-    console.error('手动触发失败:', error);
-    res.status(500).json({ error: error.message });
+    if (success) {
+      await pool.query('UPDATE tasks SET "finalSent" = 1 WHERE id = $1', [taskId]);
+      res.json({ success: true, message: '终止通知已发送' });
+    } else {
+      res.status(500).json({ error: '邮件发送失败' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// 健康检查接口
+// ---------- 健康检查 ----------
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
+});
+
+// ---------- 客服管理界面（简单 HTML）----------
+app.get('/admin', (req, res) => {
+  const token = req.query.token;
+  if (token !== process.env.CUSTOMER_TOKEN) {
+    return res.status(403).send('无权访问');
+  }
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>客服管理 - 待确认任务</title>
+        <meta charset="UTF-8">
+        <style>
+            body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
+            .task { background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .task p { margin: 5px 0; }
+            button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+            button:disabled { background: #ccc; }
+        </style>
+    </head>
+    <body>
+        <h1>待人工确认的任务</h1>
+        <div id="taskList">加载中...</div>
+        <script>
+            const token = new URLSearchParams(location.search).get('token');
+            async function loadTasks() {
+                const res = await fetch('/api/customer/pending-tasks?token=' + token);
+                if (!res.ok) {
+                    document.getElementById('taskList').innerHTML = '加载失败';
+                    return;
+                }
+                const tasks = await res.json();
+                if (tasks.length === 0) {
+                    document.getElementById('taskList').innerHTML = '暂无待确认任务';
+                    return;
+                }
+                let html = '';
+                tasks.forEach(task => {
+                    html += \`
+                        <div class="task" id="task-\${task.id}">
+                            <p><strong>\${escapeHtml(task.name)}</strong></p>
+                            <p>用户邮箱：\${escapeHtml(task.user_email)}</p>
+                            <p>监督人邮箱：\${escapeHtml(task.finalEmail)}</p>
+                            <p>联系电话：\${escapeHtml(task.contactPhone || '无')}</p>
+                            <p>最后打卡：\${new Date(task.lastCheckin).toLocaleString()}</p>
+                            <button onclick="sendFinal('\${task.id}')">确认发送终止通知</button>
+                        </div>
+                    \`);
+                });
+                document.getElementById('taskList').innerHTML = html;
+            }
+            async function sendFinal(taskId) {
+                if (!confirm('确认已联系用户并发送终止通知？')) return;
+                const res = await fetch('/api/customer/send-final/' + taskId + '?token=' + token, { method: 'POST' });
+                const result = await res.json();
+                if (res.ok) {
+                    alert('发送成功');
+                    document.getElementById('task-' + taskId).remove();
+                } else {
+                    alert('发送失败：' + (result.error || '未知错误'));
+                }
+            }
+            function escapeHtml(text) {
+                if (!text) return '';
+                return String(text).replace(/[&<>"]/g, function(m) {
+                    if (m === '&') return '&amp;';
+                    if (m === '<') return '&lt;';
+                    if (m === '>') return '&gt;';
+                    if (m === '"') return '&quot;';
+                    return m;
+                });
+            }
+            loadTasks();
+        </script>
+    </body>
+    </html>
+  `);
 });
 
 // 启动服务器
 app.listen(port, '0.0.0.0', () => {
   console.log(`后端服务运行在端口 ${port}`);
+  // 验证数据库连接
+  pool.query('SELECT NOW()', (err, res) => {
+    if (err) console.error('❌ PostgreSQL 连接失败', err.message);
+    else console.log('✅ 成功连接到 PostgreSQL，服务器时间：', res.rows[0].now);
+  });
 });
