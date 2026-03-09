@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>心灵保险 · 优化版</title>
+    <title>心灵保险 · 新版界面</title>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
-        /* 样式与之前完全相同，此处保留 */
         * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         body { background:#1a1a1a; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }
         .app-container { max-width:600px; width:100%; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.2); padding:24px; }
@@ -24,7 +23,8 @@
         input, textarea, select { width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:40px; font-size:1rem; background:white; }
         input:read-only { background:#f0f0f0; color:#666; border-color:#ccc; }
         textarea { border-radius:24px; min-height:80px; }
-        .card { background:#fafafa; border-radius:24px; padding:20px; margin-bottom:20px; border:1px solid #eaeaea; }
+        .card { background:#fafafa; border-radius:24px; padding:20px; margin-bottom:20px; border:1px solid #eaeaea; cursor:pointer; transition:0.2s; }
+        .card:hover { box-shadow:0 5px 15px rgba(0,0,0,0.1); }
         .task-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap; }
         .task-title-input { font-size:1.2rem; font-weight:600; border:1px solid transparent; background:#f0f0f0; border-radius:40px; padding:8px 16px; width:auto; min-width:150px; flex:2; }
         .status-badge { background:#eee; padding:6px 12px; border-radius:40px; font-size:0.8rem; font-weight:500; white-space:nowrap; }
@@ -58,6 +58,11 @@
         .login-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
         .login-row input { flex: 2; margin-bottom: 0; }
         .login-row button { flex: 1; }
+        .task-list-card { margin-bottom:15px; }
+        .task-list-name { font-size:1.3rem; font-weight:600; margin-bottom:8px; }
+        .task-list-info { display:flex; justify-content:space-between; align-items:center; }
+        .task-list-email { color:#555; font-size:0.9rem; }
+        .back-btn { margin-top:20px; }
     </style>
 </head>
 <body>
@@ -72,24 +77,32 @@
                 </div>
             </div>
             <div class="splash-container">
-                <div class="welcome-box" data-i18n="welcomeText">心灵保险，保护您的心灵！</div>
-                
-                <!-- 邮箱输入框 -->
+                <div class="welcome-box" data-i18n="welcomeText">欢迎进入心灵保险！\n有意外，无遗憾！</div>
                 <input type="email" id="loginEmail" class="login-input" placeholder="请输入邮箱" value="">
-                
-                <!-- 验证码行 -->
                 <div class="login-row">
                     <input type="text" id="loginCode" placeholder="验证码">
                     <button class="secondary small" id="sendLoginCodeBtn" data-i18n="sendCodeBtn">获取验证码</button>
                 </div>
-                
-                <!-- 验证并进入按钮 -->
                 <button class="enter-btn" id="verifyAndEnterBtn" data-i18n="verifyAndEnter">验证并进入心灵保险</button>
             </div>
         </div>
 
-        <!-- 主界面 -->
-        <div id="mainPage" class="page hidden">
+        <!-- 任务清单总览页 -->
+        <div id="taskListPage" class="page hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h1 data-i18n="appName">心灵保险</h1>
+                <div class="lang-switch">
+                    <button class="small secondary lang-btn" data-lang="zh">中文</button>
+                    <button class="small secondary lang-btn" data-lang="en">EN</button>
+                </div>
+            </div>
+            <div class="subhead" data-i18n="taskListTitle">任务清单总览</div>
+            <div id="taskListContainer"></div>
+            <button id="addNewTaskBtn" style="width:100%; background:white; color:#2c2c2c; border:1px dashed #aaa; margin-top:20px;" data-i18n="addTaskBtn">+ 创建新打卡任务</button>
+        </div>
+
+        <!-- 任务编辑页（单个任务编辑） -->
+        <div id="taskEditPage" class="page hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <h1 data-i18n="appName">心灵保险</h1>
                 <div class="lang-switch">
@@ -97,11 +110,72 @@
                     <button class="small secondary lang-btn" data-lang="en">EN</button>
                 </div>
             </div>
-            <div class="subhead" data-i18n="mainSubhead">数据与后端同步 · 定时任务每天检查</div>
-            <div id="taskListContainer"></div>
-            <button id="addTaskBtn" style="width:100%; background:white; color:#2c2c2c; border:1px dashed #aaa;" data-i18n="addTaskBtn">+ 创建新打卡任务</button>
-            <div class="auto-checkin-note" data-i18n="autoCheckinNote">✨ 手动打卡重置时间 · 后台每天检查</div>
-            <div class="grey-bg" style="margin-top:24px; text-align:center; padding:12px;" data-i18n="localStorageHint">⚡ 数据存储在后端 · 定时任务每天检查</div>
+            <div class="subhead" data-i18n="editTaskSubhead">编辑任务</div>
+            <div id="editTaskCard" class="card">
+                <!-- 任务标题 -->
+                <div class="task-header">
+                    <input type="text" id="editTaskName" class="task-title-input" placeholder="任务名称">
+                    <span id="editTaskStatus" class="status-badge normal">正常打卡</span>
+                </div>
+
+                <!-- 三列布局 -->
+                <div class="row-3col">
+                    <div class="col-block cycle-block">
+                        <label data-i18n="cycleLabel">周期</label>
+                        <select id="editCycleDays">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+                    <div class="col-block warning-block">
+                        <label data-i18n="warningDaysLabel">警告</label>
+                        <input type="number" id="editWarningDays" min="1" max="30" value="2">
+                    </div>
+                    <div class="col-block final-block">
+                        <label data-i18n="finalDaysLabel">终止</label>
+                        <input type="number" id="editFinalDays" min="1" max="30" value="3">
+                    </div>
+                </div>
+
+                <!-- 说明框 -->
+                <div class="info-box" data-i18n="infoText">周期：自己设定的打卡周期；警告：未按时打卡后天数，系统会触发警告提示；终止：警告后天数，系统会触发终止任务通知；</div>
+
+                <!-- 警告邮箱：只读 -->
+                <div class="email-full-width">
+                    <label data-i18n="warningEmailLabel">警告邮件发至（登录邮箱）</label>
+                    <input type="email" id="editWarningEmail" readonly>
+                </div>
+
+                <!-- 终止邮箱 -->
+                <div class="email-full-width">
+                    <label data-i18n="finalEmailLabel">终止通知发至</label>
+                    <input type="email" id="editFinalEmail" placeholder="例如：supervisor@example.com">
+                </div>
+
+                <!-- 编辑终止通知按钮 -->
+                <div class="edit-final-container">
+                    <button id="editFinalBtn" class="small" style="background:#6c757d; border-color:#6c757d; color:white;" data-i18n="editFinalBtn">编辑终止通知</button>
+                </div>
+
+                <!-- 警告内容输入框 -->
+                <div class="email-full-width">
+                    <label data-i18n="warningContentLabel">警告内容（给自己）</label>
+                    <input type="text" id="editWarningMessage" placeholder="例如：请及时打卡">
+                </div>
+
+                <!-- 底部按钮组：手动打卡、保存任务、删除任务、返回清单 -->
+                <div class="button-group-bottom">
+                    <button id="editManualCheckinBtn" class="small btn-manual" data-i18n="manualCheckinBtn">手动打卡</button>
+                    <button id="editSaveTaskBtn" class="small btn-save" data-i18n="saveTaskBtn">保存任务</button>
+                    <button id="editDeleteTaskBtn" class="small btn-delete" data-i18n="deleteBtn">删除任务</button>
+                </div>
+                <!-- 返回按钮单独一行 -->
+                <button id="backToTaskListBtn" class="small secondary" style="width:100%; margin-top:10px;" data-i18n="backToList">返回任务清单</button>
+
+                <!-- 最近打卡时间 -->
+                <div id="editLastCheckin" class="recent-checkin">最近打卡：从未</div>
+            </div>
         </div>
 
         <!-- 编辑终止通知模态框（无验证码） -->
@@ -120,7 +194,7 @@
 
     <script>
         (function() {
-            const API_BASE = 'https://mindapp-v1.onrender.com/api'; // 替换为你的实际后端地址
+            const API_BASE = 'https://mindapp-v1.onrender.com/api'; // 请替换为实际后端地址
 
             // ---------- 输出 UTC 时间用于调试 ----------
             console.log('🕐 客户端时间（本地）:', new Date().toString());
@@ -133,14 +207,9 @@
                     welcomeText: '欢迎进入心灵保险！ \n 有意外，无遗憾！',
                     sendCodeBtn: '获取验证码',
                     verifyAndEnter: '验证并进入心灵保险',
-                    mainSubhead: '数据与后端同步 · 定时任务每天检查',
+                    taskListTitle: '任务清单总览',
                     addTaskBtn: '+ 创建新打卡任务',
-                    autoCheckinNote: '✨ 手动打卡重置时间 · 后台每天检查',
-                    localStorageHint: '⚡ 数据存储在后端 · 定时任务每天检查',
-                    editFinalTitle: '✉️ 编辑终止通知邮件',
-                    finalMsgLabel: '终止任务通知邮件内容（给监督人）',
-                    cancelBtn: '取消',
-                    saveBtn: '保存',
+                    editTaskSubhead: '编辑任务',
                     cycleLabel: '周期',
                     warningDaysLabel: '警告',
                     finalDaysLabel: '终止',
@@ -152,37 +221,38 @@
                     saveTaskBtn: '保存任务',
                     editFinalBtn: '编辑终止通知',
                     deleteBtn: '删除任务',
-                    lastCheckinLabel: '最近打卡：',
-                    never: '从未',
+                    backToList: '返回任务清单',
+                    cancelBtn: '取消',
+                    saveBtn: '保存',
+                    editFinalTitle: '✉️ 编辑终止通知邮件',
+                    finalMsgLabel: '终止任务通知邮件内容（给监督人）',
                     statusNormal: '正常打卡',
                     statusWarning: '⚠️ 警告中',
                     statusFinal: '🔔 正式通知结束',
-                    noTasks: '暂无任务，点击下方创建',
-                    taskNamePlaceholder: '任务名称',
-                    apiError: '连接后端失败，请检查网络或稍后重试',
-                    confirmDelete: '确定删除此任务？',
-                    confirmSave: '确定保存任务修改？',
                     infoText: '周期：自己设定的打卡周期；警告：未按时打卡后天数，系统会触发警告提示；终止：警告后天数，系统会触发终止任务通知；',
                     loginEmailRequired: '请输入邮箱',
                     codeRequired: '请输入验证码',
                     codeSent: '验证码已发送',
                     codeSendFailed: '验证码发送失败，请重试',
                     verifySuccess: '验证成功，正在进入...',
-                    verifyFailed: '验证失败'
+                    verifyFailed: '验证失败',
+                    apiError: '连接后端失败，请检查网络或稍后重试',
+                    confirmDelete: '确定删除此任务？',
+                    confirmSave: '确定保存任务修改？',
+                    noTasks: '暂无任务，点击下方创建',
+                    taskNamePlaceholder: '任务名称',
+                    lastCheckinLabel: '最近打卡：',
+                    never: '从未',
+                    finalEmailPlaceholder: '监督人邮箱'
                 },
                 en: {
                     appName: 'Mind Insurance',
                     welcomeText: 'Welcome to Mind Insurance! \n There are accidents,but no regrets!',
                     sendCodeBtn: 'Get Code',
                     verifyAndEnter: 'Verify & Enter',
-                    mainSubhead: 'Sync with backend · Daily check',
+                    taskListTitle: 'Task List',
                     addTaskBtn: '+ Create New Task',
-                    autoCheckinNote: '✨ Manual check-in resets timer · Backend checks daily',
-                    localStorageHint: '⚡ Data stored on server · Daily checks',
-                    editFinalTitle: '✉️ Edit Final Notice Email',
-                    finalMsgLabel: 'Final notice email content (to supervisor)',
-                    cancelBtn: 'Cancel',
-                    saveBtn: 'Save',
+                    editTaskSubhead: 'Edit Task',
                     cycleLabel: 'Cycle',
                     warningDaysLabel: 'Warning',
                     finalDaysLabel: 'Final',
@@ -194,23 +264,29 @@
                     saveTaskBtn: 'Save Task',
                     editFinalBtn: 'Edit Final',
                     deleteBtn: 'Delete',
-                    lastCheckinLabel: 'Last check-in: ',
-                    never: 'Never',
+                    backToList: 'Back to List',
+                    cancelBtn: 'Cancel',
+                    saveBtn: 'Save',
+                    editFinalTitle: '✉️ Edit Final Notice Email',
+                    finalMsgLabel: 'Final notice email content (to supervisor)',
                     statusNormal: 'Normal',
                     statusWarning: '⚠️ Warning',
                     statusFinal: '🔔 Final',
-                    noTasks: 'No tasks, create one below',
-                    taskNamePlaceholder: 'Task name',
-                    apiError: 'Backend connection failed, try again later',
-                    confirmDelete: 'Delete this task?',
-                    confirmSave: 'Save changes?',
                     infoText: 'Cycle: period you set; Warning: days missed before warning; Final: days after warning before final notice.',
                     loginEmailRequired: 'Please enter email',
                     codeRequired: 'Please enter code',
                     codeSent: 'Code sent',
                     codeSendFailed: 'Failed to send code',
                     verifySuccess: 'Verification successful, entering...',
-                    verifyFailed: 'Verification failed'
+                    verifyFailed: 'Verification failed',
+                    apiError: 'Backend connection failed, try again later',
+                    confirmDelete: 'Delete this task?',
+                    confirmSave: 'Save changes?',
+                    noTasks: 'No tasks, create one below',
+                    taskNamePlaceholder: 'Task name',
+                    lastCheckinLabel: 'Last check-in: ',
+                    never: 'Never',
+                    finalEmailPlaceholder: 'Supervisor email'
                 }
             };
 
@@ -239,6 +315,15 @@
                             currentLang = lang;
                             localStorage.setItem('mind_insurance_lang', lang);
                             updateUILanguage();
+                            // 刷新当前页面的动态内容
+                            if (!document.getElementById('splashPage').classList.contains('hidden')) {
+                                // 登录页无需刷新列表
+                            } else if (!document.getElementById('taskListPage').classList.contains('hidden')) {
+                                renderTaskList();
+                            } else if (!document.getElementById('taskEditPage').classList.contains('hidden')) {
+                                // 编辑页的语言更新通过 updateUILanguage 已处理，但状态文字可能需要重新计算
+                                updateEditPageStatus();
+                            }
                         }
                     });
                 });
@@ -287,12 +372,11 @@
                     });
                     const data = await res.json();
                     if (res.ok) {
-                        // 保存登录邮箱
                         localStorage.setItem('loginEmail', email);
                         alert(i18n[currentLang].verifySuccess);
                         document.getElementById('splashPage').classList.add('hidden');
-                        document.getElementById('mainPage').classList.remove('hidden');
-                        renderTasks();
+                        document.getElementById('taskListPage').classList.remove('hidden');
+                        renderTaskList();
                     } else {
                         alert(data.error || i18n[currentLang].verifyFailed);
                     }
@@ -301,7 +385,7 @@
                 }
             });
 
-            // ---------- 后端 API 封装（所有请求携带邮箱）----------
+            // ---------- 后端 API 封装 ----------
             async function fetchTasks() {
                 const email = localStorage.getItem('loginEmail');
                 if (!email) throw new Error('未登录');
@@ -352,9 +436,7 @@
                 if (!res.ok) throw new Error('打卡失败');
             }
 
-            let currentEditingTaskId = null;
-            let tasks = [];
-
+            // ---------- 状态计算 ----------
             function getDaysSince(timestamp) {
                 const now = Date.now();
                 const diffMs = now - timestamp;
@@ -371,234 +453,232 @@
                 return 'final';
             }
 
-            function formatLastCheckin(timestamp) {
-                if (!timestamp) return i18n[currentLang].never;
-                const date = new Date(timestamp);
-                return date.toLocaleString();
-            }
+            // ---------- 渲染任务清单 ----------
+            let tasks = [];
+            let currentEditTaskId = null; // 当前编辑的任务ID，null表示新建
 
-            async function renderTasks() {
+            async function renderTaskList() {
                 const container = document.getElementById('taskListContainer');
                 if (!container) return;
-
-                container.innerHTML = '<div class="card text-center" style="color:#888;">加载中...</div>';
-
+                container.innerHTML = '<div class="card" style="color:#888;">加载中...</div>';
                 try {
                     tasks = await fetchTasks();
                 } catch (err) {
                     console.error(err);
-                    container.innerHTML = `<div class="card text-center" style="color:#b33;">${i18n[currentLang].apiError}</div>`;
+                    container.innerHTML = `<div class="card" style="color:#b33;">${i18n[currentLang].apiError}</div>`;
                     return;
                 }
-
                 if (tasks.length === 0) {
-                    container.innerHTML = `<div class="card text-center" style="color:#888;">${i18n[currentLang].noTasks}</div>`;
+                    container.innerHTML = `<div class="card" style="color:#888;">${i18n[currentLang].noTasks}</div>`;
                     return;
                 }
-
-                const loginEmail = localStorage.getItem('loginEmail') || '';
-
                 let html = '';
                 tasks.forEach(task => {
                     const status = computeTaskStatus(task);
-                    let statusText = i18n[currentLang].statusNormal;
                     let statusClass = 'normal';
+                    let statusText = i18n[currentLang].statusNormal;
                     if (status === 'warning') {
-                        statusText = i18n[currentLang].statusWarning;
                         statusClass = 'warning';
+                        statusText = i18n[currentLang].statusWarning;
                     } else if (status === 'final') {
-                        statusText = i18n[currentLang].statusFinal;
                         statusClass = 'final';
+                        statusText = i18n[currentLang].statusFinal;
                     }
-
                     html += `
-                        <div class="card" data-task-id="${task.id}">
-                            <div class="task-header">
-                                <input type="text" class="task-title-input" value="${escapeHtml(task.name)}" placeholder="${i18n[currentLang].taskNamePlaceholder}" data-field="name">
+                        <div class="card task-list-card" data-task-id="${task.id}">
+                            <div class="task-list-name">${escapeHtml(task.name)}</div>
+                            <div class="task-list-info">
+                                <span class="task-list-email">终止通知人：${escapeHtml(task.finalEmail || '未设置')}</span>
                                 <span class="status-badge ${statusClass}">${statusText}</span>
-                            </div>
-
-                            <div class="row-3col">
-                                <div class="col-block cycle-block">
-                                    <label data-i18n="cycleLabel">${i18n[currentLang].cycleLabel}</label>
-                                    <select class="cycle-select" data-field="cycleDays">
-                                        ${[1,2,3].map(d => `<option value="${d}" ${task.cycleDays === d ? 'selected' : ''}>${d}</option>`).join('')}
-                                    </select>
-                                </div>
-                                <div class="col-block warning-block">
-                                    <label data-i18n="warningDaysLabel">${i18n[currentLang].warningDaysLabel}</label>
-                                    <input type="number" min="1" max="30" class="warning-days-input" value="${task.warningDays}" data-field="warningDays">
-                                </div>
-                                <div class="col-block final-block">
-                                    <label data-i18n="finalDaysLabel">${i18n[currentLang].finalDaysLabel}</label>
-                                    <input type="number" min="1" max="30" class="final-days-input" value="${task.finalDays}" data-field="finalDays">
-                                </div>
-                            </div>
-
-                            <div class="info-box" data-i18n="infoText">${i18n[currentLang].infoText}</div>
-
-                            <!-- 警告邮箱：只读，显示登录邮箱 -->
-                            <div class="email-full-width">
-                                <label data-i18n="warningEmailLabel">${i18n[currentLang].warningEmailLabel}</label>
-                                <input type="email" class="warning-email-input" value="${escapeHtml(loginEmail)}" readonly data-field="warningEmail">
-                            </div>
-
-                            <!-- 终止邮箱：可编辑 -->
-                            <div class="email-full-width">
-                                <label data-i18n="finalEmailLabel">${i18n[currentLang].finalEmailLabel}</label>
-                                <input type="email" class="final-email-input" value="${escapeHtml(task.finalEmail || '')}" placeholder="${i18n[currentLang].finalEmailPlaceholder}" data-field="finalEmail">
-                            </div>
-
-                            <!-- 编辑终止通知按钮（直接弹出，但先自动保存） -->
-                            <div class="edit-final-container">
-                                <button class="small edit-final-btn" data-task-id="${task.id}" style="background:#6c757d; border-color:#6c757d; color:white;">${i18n[currentLang].editFinalBtn}</button>
-                            </div>
-
-                            <!-- 警告内容输入框 -->
-                            <div class="email-full-width">
-                                <label data-i18n="warningContentLabel">${i18n[currentLang].warningContentLabel}</label>
-                                <input type="text" class="warning-message-input" value="${escapeHtml(task.warningMessage || '')}" placeholder="${i18n[currentLang].warningContentPlaceholder}" data-field="warningMessage">
-                            </div>
-
-                            <div class="button-group-bottom">
-                                <button class="small manual-checkin-btn btn-manual" data-task-id="${task.id}">${i18n[currentLang].manualCheckinBtn}</button>
-                                <button class="small save-task-btn btn-save" data-task-id="${task.id}">${i18n[currentLang].saveTaskBtn}</button>
-                                <button class="small delete-btn btn-delete" data-task-id="${task.id}">${i18n[currentLang].deleteBtn}</button>
-                            </div>
-
-                            <div class="recent-checkin">
-                                ${i18n[currentLang].lastCheckinLabel} ${formatLastCheckin(task.lastCheckin)}
                             </div>
                         </div>
                     `;
                 });
                 container.innerHTML = html;
-
-                // 绑定事件：保存任务按钮
-                document.querySelectorAll('.save-task-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const taskId = e.target.dataset.taskId;
-                        const card = e.target.closest('.card');
-                        const updates = {};
-                        const nameInput = card.querySelector('.task-title-input');
-                        if (nameInput) updates.name = nameInput.value;
-                        const cycleSelect = card.querySelector('.cycle-select');
-                        if (cycleSelect) updates.cycleDays = parseInt(cycleSelect.value, 10);
-                        const warningDaysInput = card.querySelector('.warning-days-input');
-                        if (warningDaysInput) updates.warningDays = parseInt(warningDaysInput.value, 10) || 1;
-                        const finalDaysInput = card.querySelector('.final-days-input');
-                        if (finalDaysInput) updates.finalDays = parseInt(finalDaysInput.value, 10) || 1;
-                        const finalEmailInput = card.querySelector('.final-email-input');
-                        if (finalEmailInput) updates.finalEmail = finalEmailInput.value;
-                        const warningMsgInput = card.querySelector('.warning-message-input');
-                        if (warningMsgInput) updates.warningMessage = warningMsgInput.value;
-
-                        if (!confirm(i18n[currentLang].confirmSave)) return;
-
-                        try {
-                            await updateTask(taskId, updates);
-                            const task = tasks.find(t => t.id === taskId);
-                            if (task) Object.assign(task, updates);
-                            await renderTasks();
-                        } catch (err) {
-                            alert(i18n[currentLang].apiError);
-                        }
-                    });
-                });
-
-                // 手动打卡按钮
-                document.querySelectorAll('.manual-checkin-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const taskId = e.target.dataset.taskId;
-                        try {
-                            await checkinTask(taskId);
-                            await renderTasks();
-                            alert(currentLang === 'zh' ? '✅ 手动打卡成功！' : '✅ Manual check-in successful!');
-                        } catch (err) {
-                            alert(i18n[currentLang].apiError);
-                        }
-                    });
-                });
-
-                // 编辑终止通知按钮：先自动保存所有字段，再弹出模态框
-                document.querySelectorAll('.edit-final-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const taskId = e.target.dataset.taskId;
-                        const card = e.target.closest('.card');
+                // 为每个卡片绑定点击事件
+                document.querySelectorAll('.task-list-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const taskId = card.dataset.taskId;
                         const task = tasks.find(t => t.id === taskId);
-                        if (!task) return;
-
-                        // 收集当前卡片上所有字段的最新值
-                        const updates = {};
-                        const nameInput = card.querySelector('.task-title-input');
-                        if (nameInput) updates.name = nameInput.value;
-                        const cycleSelect = card.querySelector('.cycle-select');
-                        if (cycleSelect) updates.cycleDays = parseInt(cycleSelect.value, 10);
-                        const warningDaysInput = card.querySelector('.warning-days-input');
-                        if (warningDaysInput) updates.warningDays = parseInt(warningDaysInput.value, 10) || 1;
-                        const finalDaysInput = card.querySelector('.final-days-input');
-                        if (finalDaysInput) updates.finalDays = parseInt(finalDaysInput.value, 10) || 1;
-                        const finalEmailInput = card.querySelector('.final-email-input');
-                        if (finalEmailInput) updates.finalEmail = finalEmailInput.value;
-                        const warningMsgInput = card.querySelector('.warning-message-input');
-                        if (warningMsgInput) updates.warningMessage = warningMsgInput.value;
-
-                        try {
-                            // 先自动保存这些字段（不弹出确认框）
-                            await updateTask(taskId, updates);
-                            // 更新本地缓存中的任务对象
-                            Object.assign(task, updates);
-                            // 然后打开编辑终止通知模态框
-                            currentEditingTaskId = taskId;
-                            document.getElementById('editFinalMsg').value = task.finalMessage || '';
-                            document.getElementById('editFinalModal').classList.remove('hidden');
-                        } catch (err) {
-                            alert(i18n[currentLang].apiError);
-                        }
-                    });
-                });
-
-                // 删除任务按钮
-                document.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const taskId = e.target.dataset.taskId;
-                        if (!confirm(i18n[currentLang].confirmDelete)) return;
-                        try {
-                            await deleteTask(taskId);
-                            await renderTasks();
-                        } catch (err) {
-                            alert(i18n[currentLang].apiError);
+                        if (task) {
+                            currentEditTaskId = task.id;
+                            populateEditPage(task);
+                            document.getElementById('taskListPage').classList.add('hidden');
+                            document.getElementById('taskEditPage').classList.remove('hidden');
                         }
                     });
                 });
             }
 
-            // 模态框保存/取消
-            document.getElementById('editFinalSaveBtn').addEventListener('click', async () => {
-                if (!currentEditingTaskId) return;
-                const newFinalMsg = document.getElementById('editFinalMsg').value;
+            // 填充编辑页
+            function populateEditPage(task) {
+                document.getElementById('editTaskName').value = task.name || '';
+                document.getElementById('editCycleDays').value = task.cycleDays || 1;
+                document.getElementById('editWarningDays').value = task.warningDays || 1;
+                document.getElementById('editFinalDays').value = task.finalDays || 1;
+                document.getElementById('editWarningEmail').value = task.warningEmail || localStorage.getItem('loginEmail') || '';
+                document.getElementById('editFinalEmail').value = task.finalEmail || '';
+                document.getElementById('editWarningMessage').value = task.warningMessage || '';
+                document.getElementById('editLastCheckin').innerText = i18n[currentLang].lastCheckinLabel + (task.lastCheckin ? new Date(task.lastCheckin).toLocaleString() : i18n[currentLang].never);
+                updateEditPageStatus();
+            }
+
+            // 更新编辑页的状态徽章
+            function updateEditPageStatus() {
+                if (!currentEditTaskId) return;
+                const task = tasks.find(t => t.id === currentEditTaskId);
+                if (!task) return;
+                const status = computeTaskStatus(task);
+                const badge = document.getElementById('editTaskStatus');
+                badge.className = 'status-badge ' + status;
+                if (status === 'normal') badge.innerText = i18n[currentLang].statusNormal;
+                else if (status === 'warning') badge.innerText = i18n[currentLang].statusWarning;
+                else badge.innerText = i18n[currentLang].statusFinal;
+            }
+
+            // 从编辑页保存任务（新建或更新）
+            async function saveEditTask() {
+                const loginEmail = localStorage.getItem('loginEmail');
+                if (!loginEmail) return;
+                const taskData = {
+                    name: document.getElementById('editTaskName').value.trim() || '未命名任务',
+                    cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
+                    warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
+                    finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
+                    warningEmail: loginEmail, // 只读，从登录邮箱获取
+                    finalEmail: document.getElementById('editFinalEmail').value.trim(),
+                    warningMessage: document.getElementById('editWarningMessage').value.trim(),
+                    finalMessage: '', // 会在编辑终止通知时单独保存
+                };
+                if (currentEditTaskId) {
+                    // 更新
+                    await updateTask(currentEditTaskId, taskData);
+                    // 更新本地 tasks 缓存
+                    const task = tasks.find(t => t.id === currentEditTaskId);
+                    if (task) Object.assign(task, taskData);
+                } else {
+                    // 新建
+                    taskData.finalMessage = ''; // 新建时 finalMessage 为空
+                    taskData.lastCheckin = Date.now();
+                    const newTask = await createTask(taskData);
+                    tasks.push(newTask);
+                    currentEditTaskId = newTask.id; // 设置当前编辑ID为新任务ID
+                }
+                // 刷新编辑页显示
+                const updatedTask = tasks.find(t => t.id === currentEditTaskId);
+                if (updatedTask) populateEditPage(updatedTask);
+            }
+
+            // ---------- 编辑页按钮事件绑定 ----------
+            document.getElementById('editSaveTaskBtn').addEventListener('click', async () => {
+                if (!confirm(i18n[currentLang].confirmSave)) return;
                 try {
-                    await updateTask(currentEditingTaskId, { finalMessage: newFinalMsg });
-                    const task = tasks.find(t => t.id === currentEditingTaskId);
-                    if (task) task.finalMessage = newFinalMsg;
-                    await renderTasks();
+                    await saveEditTask();
+                    alert('保存成功');
                 } catch (err) {
                     alert(i18n[currentLang].apiError);
                 }
-                document.getElementById('editFinalModal').classList.add('hidden');
-                currentEditingTaskId = null;
+            });
+
+            document.getElementById('editManualCheckinBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                try {
+                    await checkinTask(currentEditTaskId);
+                    const task = tasks.find(t => t.id === currentEditTaskId);
+                    if (task) {
+                        task.lastCheckin = Date.now();
+                        task.warningSent = 0;
+                        task.finalSent = 0;
+                        task.warningTriggeredAt = null;
+                        populateEditPage(task);
+                    }
+                    alert(currentLang === 'zh' ? '✅ 手动打卡成功！' : '✅ Manual check-in successful!');
+                } catch (err) {
+                    alert(i18n[currentLang].apiError);
+                }
+            });
+
+            document.getElementById('editDeleteTaskBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                if (!confirm(i18n[currentLang].confirmDelete)) return;
+                try {
+                    await deleteTask(currentEditTaskId);
+                    tasks = tasks.filter(t => t.id !== currentEditTaskId);
+                    // 返回清单页
+                    document.getElementById('taskEditPage').classList.add('hidden');
+                    document.getElementById('taskListPage').classList.remove('hidden');
+                    renderTaskList();
+                } catch (err) {
+                    alert(i18n[currentLang].apiError);
+                }
+            });
+
+            document.getElementById('backToTaskListBtn').addEventListener('click', () => {
+                document.getElementById('taskEditPage').classList.add('hidden');
+                document.getElementById('taskListPage').classList.remove('hidden');
+                renderTaskList(); // 刷新清单页（可选）
+            });
+
+            // 编辑终止通知按钮
+            document.getElementById('editFinalBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                const task = tasks.find(t => t.id === currentEditTaskId);
+                if (!task) return;
+                // 先自动保存当前任务的其他字段（可选，防止丢失）
+                await saveEditTask();
+                // 打开模态框
+                document.getElementById('editFinalMsg').value = task.finalMessage || '';
+                document.getElementById('editFinalModal').classList.remove('hidden');
+            });
+
+            document.getElementById('editFinalSaveBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                const newFinalMsg = document.getElementById('editFinalMsg').value;
+                try {
+                    await updateTask(currentEditTaskId, { finalMessage: newFinalMsg });
+                    const task = tasks.find(t => t.id === currentEditTaskId);
+                    if (task) task.finalMessage = newFinalMsg;
+                    document.getElementById('editFinalModal').classList.add('hidden');
+                } catch (err) {
+                    alert(i18n[currentLang].apiError);
+                }
             });
 
             document.getElementById('editFinalCancelBtn').addEventListener('click', () => {
                 document.getElementById('editFinalModal').classList.add('hidden');
-                currentEditingTaskId = null;
             });
 
             document.getElementById('editFinalModal').addEventListener('click', (e) => {
                 if (e.target === document.getElementById('editFinalModal')) {
                     document.getElementById('editFinalModal').classList.add('hidden');
-                    currentEditingTaskId = null;
                 }
+            });
+
+            // ---------- 新增任务 ----------
+            document.getElementById('addNewTaskBtn').addEventListener('click', () => {
+                // 清空编辑页，准备新建
+                currentEditTaskId = null;
+                document.getElementById('editTaskName').value = '';
+                document.getElementById('editCycleDays').value = 1;
+                document.getElementById('editWarningDays').value = 2;
+                document.getElementById('editFinalDays').value = 3;
+                document.getElementById('editWarningEmail').value = localStorage.getItem('loginEmail') || '';
+                document.getElementById('editFinalEmail').value = '';
+                document.getElementById('editWarningMessage').value = '';
+                document.getElementById('editLastCheckin').innerText = i18n[currentLang].lastCheckinLabel + i18n[currentLang].never;
+                document.getElementById('editTaskStatus').className = 'status-badge normal';
+                document.getElementById('editTaskStatus').innerText = i18n[currentLang].statusNormal;
+                // 切换到编辑页
+                document.getElementById('taskListPage').classList.add('hidden');
+                document.getElementById('taskEditPage').classList.remove('hidden');
+            });
+
+            // ---------- 初始化 ----------
+            window.addEventListener('DOMContentLoaded', () => {
+                updateUILanguage();
+                bindLangButtons();
+                // 检查是否已登录，若已登录可自动跳转（可选，但为了安全，不自动跳转，让用户点击验证）
+                // 如果 localStorage 有 loginEmail，可以自动进入清单页？但需要验证码，所以不自动
             });
 
             function escapeHtml(unsafe) {
@@ -611,41 +691,6 @@
                     return m;
                 });
             }
-
-            // ---------- 添加任务 ----------
-            document.getElementById('addTaskBtn').addEventListener('click', async () => {
-                const loginEmail = localStorage.getItem('loginEmail');
-                if (!loginEmail) {
-                    alert('请先登录');
-                    return;
-                }
-                const newTask = {
-                    name: currentLang === 'zh' ? '新任务' : 'New Task',
-                    cycleDays: 1,
-                    warningDays: 2,
-                    finalDays: 3,
-                    warningEmail: loginEmail,
-                    finalEmail: '',
-                    warningMessage: currentLang === 'zh' ? '请及时打卡' : 'Please check in',
-                    finalMessage: currentLang === 'zh' ? '任务终止通知' : 'Task terminated',
-                    lastCheckin: Date.now(),
-                    user_email: loginEmail
-                };
-                try {
-                    await createTask(newTask);
-                    await renderTasks();
-                } catch (err) {
-                    alert(i18n[currentLang].apiError);
-                }
-            });
-
-            // ---------- 初始化 ----------
-            window.addEventListener('DOMContentLoaded', () => {
-                updateUILanguage();
-                bindLangButtons();
-                // 输出调试信息
-                console.log('🕐 客户端时间（格式化）:', new Date().toLocaleString());
-            });
         })();
     </script>
 </body>
