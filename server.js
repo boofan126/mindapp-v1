@@ -5,6 +5,8 @@ const { Pool } = require('pg');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 
+const dns = require('dns'); // 添加到文件顶部3月9日1853增加
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -55,13 +57,18 @@ async function initDB() {
 initDB();
 
 // ---------- 配置 Nodemailer 发件器（使用 QQ 邮箱）----------
+// ----3月9日1855改
 const transporter = nodemailer.createTransport({
   host: 'smtp.qq.com',
   port: 465,
   secure: true,
   auth: {
-    user: process.env.SMTP_USER,      // 你的 QQ 邮箱
-    pass: process.env.SMTP_PASS        // 你的 QQ 邮箱授权码
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  },
+  lookup: (hostname, options, callback) => {
+    // 强制使用 IPv4 地址
+    dns.lookup(hostname, { family: 4 }, callback);
   }
 });
 
