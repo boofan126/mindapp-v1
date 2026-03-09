@@ -71,38 +71,61 @@ let transporter = null;
 
 // ---------- 异步启动服务器，先解析 SMTP IP ----------
 async function startServer() {
+  let smtpReady = false;
   try {
     // 解析 smtp.qq.com 的 IPv4 地址
     const addresses = await resolve4('smtp.qq.com');
     const smtpIp = addresses[0];
     console.log('SMTP IP resolved:', smtpIp);
 
-    // 创建 Nodemailer 传输器，直接使用 IP 避免 IPv6 问题
+    // 尝试使用 587 端口（STARTTLS）
     transporter = nodemailer.createTransport({
       host: smtpIp,
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false, // 使用 STARTTLS
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-      }
+      },
+      tls: {
+        rejectUnauthorized: false // 如果遇到证书问题可开启
+      },
+      connectionTimeout: 10000, // 10 秒
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
 
     // 验证连接
     await transporter.verify();
-    console.log('SMTP 服务器已就绪');
+    console.log('SMTP 服务器已就绪（IPv4 + 587）');
+    smtpReady = true;
   } catch (err) {
-    console.error('SMTP 初始化失败，尝试降级使用域名（可能仍会触发 IPv6 问题）', err);
-    // 降级使用域名（可能再次遇到 IPv6 问题，但保留作为后备）
-    transporter = nodemailer.createTransport({
-      host: 'smtp.qq.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    console.error('SMTP 初始化失败（IPv4 + 587）:', err.message);
+    console.log('尝试降级使用域名 + 587 端口...');
+    try {
+      // 降级使用域名（可能仍会触发 IPv6 问题，但尝试）
+      transporter = nodemailer.createTransport({
+        host: 'smtp.qq.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+      });
+      await transporter.verify();
+      console.log('SMTP 服务器已就绪（域名 + 587）');
+      smtpReady = true;
+    } catch (err2) {
+      console.error('SMTP 降级也失败，邮件功能将不可用', err2.message);
+      // 保留 transporter = null，邮件发送会返回 false
+    }
   }
 
   // ---------- 通用邮件发送函数（使用已初始化的 transporter）----------
@@ -523,9 +546,9 @@ async function startServer() {
     res.status(200).send('OK');
   });
 
-  // 启动服务器（此时 SMTP 已就绪）
+  // 启动服务器（无论 SMTP 是否成功，都启动）
   app.listen(port, '0.0.0.0', () => {
-    console.log(`后端服务运行在端口 ${port}`);
+    console.log(`后端服务运行在端口 ${port}（邮件功能${smtpReady ? '已启用' : '不可用'}）`);
     // 验证数据库连接
     pool.query('SELECT NOW()', (err, dbRes) => {
       if (err) console.error('❌ PostgreSQL 连接失败', err.message);
