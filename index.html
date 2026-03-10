@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>心灵保险 · 新版界面（自动打卡）</title>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <title>心灵保险 · 人工确认版</title>
     <style>
+        /* 样式与之前相同，此处新增电话输入模态框样式 */
         * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         body { background:#1a1a1a; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }
         .app-container { max-width:600px; width:100%; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.2); padding:24px; }
@@ -63,6 +63,10 @@
         .task-list-info { display:flex; justify-content:space-between; align-items:center; }
         .task-list-email { color:#555; font-size:0.9rem; }
         .back-btn { margin-top:20px; }
+        .checkbox-row { display:flex; align-items:center; gap:8px; margin:10px 0; }
+        .phone-input-group { display:flex; gap:8px; align-items:center; }
+        .country-code { width:30%; }
+        .phone-number { width:70%; }
     </style>
 </head>
 <body>
@@ -153,9 +157,13 @@
                     <input type="email" id="editFinalEmail" placeholder="例如：supervisor@example.com">
                 </div>
 
-                <!-- 编辑终止通知按钮 -->
-                <div class="edit-final-container">
-                    <button id="editFinalBtn" class="small" style="background:#6c757d; border-color:#6c757d; color:white;" data-i18n="editFinalBtn">编辑终止通知</button>
+                <!-- 编辑终止通知按钮 + 人工确认复选框 -->
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+                    <button id="editFinalBtn" class="small" style="background:#6c757d; border-color:#6c757d; color:white; flex:1;" data-i18n="editFinalBtn">编辑终止通知</button>
+                    <label style="display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                        <input type="checkbox" id="needHumanConfirmCheckbox">
+                        <span data-i18n="needHumanConfirmLabel">需要人工确认</span>
+                    </label>
                 </div>
 
                 <!-- 警告内容输入框 -->
@@ -190,6 +198,31 @@
                 </div>
             </div>
         </div>
+
+        <!-- 人工确认电话输入模态框 -->
+        <div id="phoneModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 style="margin-bottom:20px;" data-i18n="phoneModalTitle">请输入联系电话</h3>
+                <p style="margin-bottom:16px; color:#555;" data-i18n="phoneModalHint">客服将通过此电话与您联系确认</p>
+                <div class="phone-input-group">
+                    <select id="countryCode" class="country-code">
+                        <option value="+86">+86 (中国)</option>
+                        <option value="+1">+1 (美国)</option>
+                        <option value="+852">+852 (香港)</option>
+                        <option value="+853">+853 (澳门)</option>
+                        <option value="+886">+886 (台湾)</option>
+                        <option value="+81">+81 (日本)</option>
+                        <option value="+82">+82 (韩国)</option>
+                        <option value="+44">+44 (英国)</option>
+                    </select>
+                    <input type="tel" id="phoneNumber" class="phone-number" placeholder="手机号码" value="">
+                </div>
+                <div class="modal-actions" style="display:flex; gap:12px; margin-top:20px;">
+                    <button class="secondary" id="phoneCancelBtn" data-i18n="cancelBtn">取消</button>
+                    <button id="phoneSaveBtn" data-i18n="saveBtn">保存</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -200,7 +233,7 @@
             console.log('🕐 客户端时间（本地）:', new Date().toString());
             console.log('🕐 客户端时间（UTC）:', new Date().toISOString());
 
-            // ---------- 语言包 ----------
+            // ---------- 语言包（新增人工确认相关文字）----------
             const i18n = {
                 zh: {
                     appName: '心灵保险',
@@ -226,6 +259,9 @@
                     saveBtn: '保存',
                     editFinalTitle: '✉️ 编辑终止通知邮件',
                     finalMsgLabel: '终止任务通知邮件内容（给监督人）',
+                    needHumanConfirmLabel: '需要人工确认',
+                    phoneModalTitle: '请输入联系电话',
+                    phoneModalHint: '客服将通过此电话与您联系确认',
                     statusNormal: '正常打卡',
                     statusWarning: '⚠️ 警告中',
                     statusFinal: '🔔 正式通知结束',
@@ -269,6 +305,9 @@
                     saveBtn: 'Save',
                     editFinalTitle: '✉️ Edit Final Notice Email',
                     finalMsgLabel: 'Final notice email content (to supervisor)',
+                    needHumanConfirmLabel: 'Need human confirm',
+                    phoneModalTitle: 'Enter contact phone',
+                    phoneModalHint: '客服将通过此电话与您联系确认',
                     statusNormal: 'Normal',
                     statusWarning: '⚠️ Warning',
                     statusFinal: '🔔 Final',
@@ -315,7 +354,6 @@
                             currentLang = lang;
                             localStorage.setItem('mind_insurance_lang', lang);
                             updateUILanguage();
-                            // 刷新当前页面的动态内容
                             if (!document.getElementById('splashPage').classList.contains('hidden')) {
                                 // 登录页无需刷新列表
                             } else if (!document.getElementById('taskListPage').classList.contains('hidden')) {
@@ -354,7 +392,7 @@
 
             // ---------- 自动打卡函数 ----------
             async function tryAutoCheckin(email) {
-                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                const today = new Date().toISOString().split('T')[0];
                 const lastAuto = localStorage.getItem('lastAutoCheckinDate');
                 if (lastAuto === today) {
                     console.log('今日已自动打卡，跳过');
@@ -367,7 +405,6 @@
                     if (res.ok) {
                         localStorage.setItem('lastAutoCheckinDate', today);
                         console.log('自动打卡成功，重新获取任务列表');
-                        // 重新获取任务列表，更新全局 tasks 并刷新清单页（如果当前在清单页）
                         tasks = await fetchTasks();
                         if (!document.getElementById('taskListPage').classList.contains('hidden')) {
                             renderTaskList();
@@ -401,7 +438,6 @@
                     if (res.ok) {
                         localStorage.setItem('loginEmail', email);
                         alert(i18n[currentLang].verifySuccess);
-                        // 执行自动打卡（每日首次）
                         await tryAutoCheckin(email);
                         document.getElementById('splashPage').classList.add('hidden');
                         document.getElementById('taskListPage').classList.remove('hidden');
@@ -468,6 +504,7 @@
             // ---------- 状态计算 ----------
             let tasks = [];
             let currentEditTaskId = null; // 当前编辑的任务ID，null表示新建
+            let tempNeedHumanConfirm = false; // 暂存复选框状态（用于打开电话模态框前）
 
             function getDaysSince(timestamp) {
                 const now = Date.now();
@@ -524,7 +561,6 @@
                     `;
                 });
                 container.innerHTML = html;
-                // 为每个卡片绑定点击事件
                 document.querySelectorAll('.task-list-card').forEach(card => {
                     card.addEventListener('click', () => {
                         const taskId = card.dataset.taskId;
@@ -549,10 +585,13 @@
                 document.getElementById('editFinalEmail').value = task.finalEmail || '';
                 document.getElementById('editWarningMessage').value = task.warningMessage || '';
                 document.getElementById('editLastCheckin').innerText = i18n[currentLang].lastCheckinLabel + (task.lastCheckin ? new Date(task.lastCheckin).toLocaleString() : i18n[currentLang].never);
+                // 人工确认复选框
+                const needHumanConfirm = task.needHumanConfirm === 1 || task.needHumanConfirm === true;
+                document.getElementById('needHumanConfirmCheckbox').checked = needHumanConfirm;
+                // 如果有联系电话，可以暂存但电话模态框单独处理
                 updateEditPageStatus();
             }
 
-            // 更新编辑页的状态徽章
             function updateEditPageStatus() {
                 if (!currentEditTaskId) return;
                 const task = tasks.find(t => t.id === currentEditTaskId);
@@ -565,10 +604,12 @@
                 else badge.innerText = i18n[currentLang].statusFinal;
             }
 
-            // 从编辑页保存任务（新建或更新）
+            // 保存任务（新建或更新）
             async function saveEditTask() {
                 const loginEmail = localStorage.getItem('loginEmail');
                 if (!loginEmail) return;
+                const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
+                // 如果需要人工确认但没有联系电话，提示先输入电话（但电话在单独模态框，这里只是保存）
                 const taskData = {
                     name: document.getElementById('editTaskName').value.trim() || '未命名任务',
                     cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
@@ -577,7 +618,9 @@
                     warningEmail: loginEmail,
                     finalEmail: document.getElementById('editFinalEmail').value.trim(),
                     warningMessage: document.getElementById('editWarningMessage').value.trim(),
-                    finalMessage: '',
+                    finalMessage: '', // 编辑终止通知时单独保存
+                    needHumanConfirm: needHumanConfirm ? 1 : 0,
+                    contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : '' // 从临时存储读取电话
                 };
                 if (currentEditTaskId) {
                     await updateTask(currentEditTaskId, taskData);
@@ -594,7 +637,89 @@
                 if (updatedTask) populateEditPage(updatedTask);
             }
 
-            // ---------- 编辑页按钮事件绑定 ----------
+            // ---------- 事件绑定 ----------
+            // 人工确认复选框变化：如果勾选且当前没有联系电话，则弹出电话模态框
+            document.getElementById('needHumanConfirmCheckbox').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    // 弹出电话模态框（先保存当前任务ID到全局）
+                    tempNeedHumanConfirm = true;
+                    // 预填已有电话（如果有）
+                    if (currentEditTaskId) {
+                        const task = tasks.find(t => t.id === currentEditTaskId);
+                        if (task && task.contactPhone) {
+                            const parts = task.contactPhone.split(' ');
+                            if (parts.length === 2) {
+                                document.getElementById('countryCode').value = parts[0];
+                                document.getElementById('phoneNumber').value = parts[1];
+                            } else {
+                                document.getElementById('phoneNumber').value = task.contactPhone;
+                            }
+                        } else {
+                            document.getElementById('countryCode').value = '+86';
+                            document.getElementById('phoneNumber').value = '';
+                        }
+                    } else {
+                        document.getElementById('countryCode').value = '+86';
+                        document.getElementById('phoneNumber').value = '';
+                    }
+                    document.getElementById('phoneModal').classList.remove('hidden');
+                } else {
+                    // 取消勾选，清除电话
+                    localStorage.removeItem('tempContactPhone');
+                }
+            });
+
+            document.getElementById('phoneSaveBtn').addEventListener('click', () => {
+                const countryCode = document.getElementById('countryCode').value;
+                const phone = document.getElementById('phoneNumber').value.trim();
+                if (!phone) {
+                    alert('请输入手机号码');
+                    return;
+                }
+                const fullPhone = countryCode + ' ' + phone;
+                localStorage.setItem('tempContactPhone', fullPhone);
+                document.getElementById('phoneModal').classList.add('hidden');
+            });
+
+            document.getElementById('phoneCancelBtn').addEventListener('click', () => {
+                // 取消勾选复选框
+                document.getElementById('needHumanConfirmCheckbox').checked = false;
+                localStorage.removeItem('tempContactPhone');
+                document.getElementById('phoneModal').classList.add('hidden');
+            });
+
+            document.getElementById('editFinalBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                const task = tasks.find(t => t.id === currentEditTaskId);
+                if (!task) return;
+                await saveEditTask(); // 先保存当前修改，以防丢失
+                document.getElementById('editFinalMsg').value = task.finalMessage || '';
+                document.getElementById('editFinalModal').classList.remove('hidden');
+            });
+
+            document.getElementById('editFinalSaveBtn').addEventListener('click', async () => {
+                if (!currentEditTaskId) return;
+                const newFinalMsg = document.getElementById('editFinalMsg').value;
+                try {
+                    await updateTask(currentEditTaskId, { finalMessage: newFinalMsg });
+                    const task = tasks.find(t => t.id === currentEditTaskId);
+                    if (task) task.finalMessage = newFinalMsg;
+                    document.getElementById('editFinalModal').classList.add('hidden');
+                } catch (err) {
+                    alert(i18n[currentLang].apiError);
+                }
+            });
+
+            document.getElementById('editFinalCancelBtn').addEventListener('click', () => {
+                document.getElementById('editFinalModal').classList.add('hidden');
+            });
+
+            document.getElementById('editFinalModal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('editFinalModal')) {
+                    document.getElementById('editFinalModal').classList.add('hidden');
+                }
+            });
+
             document.getElementById('editSaveTaskBtn').addEventListener('click', async () => {
                 if (!confirm(i18n[currentLang].confirmSave)) return;
                 try {
@@ -615,6 +740,7 @@
                         task.warningSent = 0;
                         task.finalSent = 0;
                         task.warningTriggeredAt = null;
+                        task.customerNotified = 0;
                         populateEditPage(task);
                     }
                     alert(currentLang === 'zh' ? '✅ 手动打卡成功！' : '✅ Manual check-in successful!');
@@ -643,41 +769,6 @@
                 renderTaskList();
             });
 
-            // 编辑终止通知按钮
-            document.getElementById('editFinalBtn').addEventListener('click', async () => {
-                if (!currentEditTaskId) return;
-                const task = tasks.find(t => t.id === currentEditTaskId);
-                if (!task) return;
-                // 先自动保存当前任务的其他字段（防止丢失）
-                await saveEditTask();
-                document.getElementById('editFinalMsg').value = task.finalMessage || '';
-                document.getElementById('editFinalModal').classList.remove('hidden');
-            });
-
-            document.getElementById('editFinalSaveBtn').addEventListener('click', async () => {
-                if (!currentEditTaskId) return;
-                const newFinalMsg = document.getElementById('editFinalMsg').value;
-                try {
-                    await updateTask(currentEditTaskId, { finalMessage: newFinalMsg });
-                    const task = tasks.find(t => t.id === currentEditTaskId);
-                    if (task) task.finalMessage = newFinalMsg;
-                    document.getElementById('editFinalModal').classList.add('hidden');
-                } catch (err) {
-                    alert(i18n[currentLang].apiError);
-                }
-            });
-
-            document.getElementById('editFinalCancelBtn').addEventListener('click', () => {
-                document.getElementById('editFinalModal').classList.add('hidden');
-            });
-
-            document.getElementById('editFinalModal').addEventListener('click', (e) => {
-                if (e.target === document.getElementById('editFinalModal')) {
-                    document.getElementById('editFinalModal').classList.add('hidden');
-                }
-            });
-
-            // ---------- 新增任务 ----------
             document.getElementById('addNewTaskBtn').addEventListener('click', () => {
                 currentEditTaskId = null;
                 document.getElementById('editTaskName').value = '';
@@ -690,11 +781,13 @@
                 document.getElementById('editLastCheckin').innerText = i18n[currentLang].lastCheckinLabel + i18n[currentLang].never;
                 document.getElementById('editTaskStatus').className = 'status-badge normal';
                 document.getElementById('editTaskStatus').innerText = i18n[currentLang].statusNormal;
+                document.getElementById('needHumanConfirmCheckbox').checked = false;
+                localStorage.removeItem('tempContactPhone');
                 document.getElementById('taskListPage').classList.add('hidden');
                 document.getElementById('taskEditPage').classList.remove('hidden');
             });
 
-            // ---------- 初始化 ----------
+            // 初始化
             window.addEventListener('DOMContentLoaded', () => {
                 updateUILanguage();
                 bindLangButtons();
