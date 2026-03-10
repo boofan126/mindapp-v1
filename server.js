@@ -29,6 +29,7 @@ const pool = new Pool({
 async function initDB() {
   const client = await pool.connect();
   try {
+    // 创建表（如果不存在）
     await client.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
@@ -47,12 +48,24 @@ async function initDB() {
         "finalSent" INTEGER DEFAULT 0,
         "warningTriggeredAt" BIGINT,
         verification_code TEXT,
-        code_expires BIGINT,
-        "needHumanConfirm" INTEGER DEFAULT 0,
-        "contactPhone" TEXT,
-        "customerNotified" INTEGER DEFAULT 0
+        code_expires BIGINT
       )
     `);
+
+    // 添加缺失的人工确认相关字段（如果不存在）
+    await client.query(`
+      ALTER TABLE tasks 
+      ADD COLUMN IF NOT EXISTS "needHumanConfirm" INTEGER DEFAULT 0
+    `);
+    await client.query(`
+      ALTER TABLE tasks 
+      ADD COLUMN IF NOT EXISTS "contactPhone" TEXT
+    `);
+    await client.query(`
+      ALTER TABLE tasks 
+      ADD COLUMN IF NOT EXISTS "customerNotified" INTEGER DEFAULT 0
+    `);
+
     console.log('数据库初始化完成');
   } catch (err) {
     console.error('数据库初始化失败', err);

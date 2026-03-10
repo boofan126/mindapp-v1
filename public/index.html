@@ -605,37 +605,40 @@
             }
 
             // 保存任务（新建或更新）
-            async function saveEditTask() {
-                const loginEmail = localStorage.getItem('loginEmail');
-                if (!loginEmail) return;
-                const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
-                // 如果需要人工确认但没有联系电话，提示先输入电话（但电话在单独模态框，这里只是保存）
-                const taskData = {
-                    name: document.getElementById('editTaskName').value.trim() || '未命名任务',
-                    cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
-                    warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
-                    finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
-                    warningEmail: loginEmail,
-                    finalEmail: document.getElementById('editFinalEmail').value.trim(),
-                    warningMessage: document.getElementById('editWarningMessage').value.trim(),
-                    finalMessage: '', // 编辑终止通知时单独保存
-                    needHumanConfirm: needHumanConfirm ? 1 : 0,
-                    contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : '' // 从临时存储读取电话
-                };
-                if (currentEditTaskId) {
-                    await updateTask(currentEditTaskId, taskData);
-                    const task = tasks.find(t => t.id === currentEditTaskId);
-                    if (task) Object.assign(task, taskData);
-                } else {
-                    taskData.finalMessage = '';
-                    taskData.lastCheckin = Date.now();
-                    const newTask = await createTask(taskData);
-                    tasks.push(newTask);
-                    currentEditTaskId = newTask.id;
-                }
-                const updatedTask = tasks.find(t => t.id === currentEditTaskId);
-                if (updatedTask) populateEditPage(updatedTask);
-            }
+         async function saveEditTask() {
+  const loginEmail = localStorage.getItem('loginEmail');
+  if (!loginEmail) return;
+  try {
+    const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
+    const taskData = {
+      name: document.getElementById('editTaskName').value.trim() || '未命名任务',
+      cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
+      warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
+      finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
+      warningEmail: loginEmail,
+      finalEmail: document.getElementById('editFinalEmail').value.trim(),
+      warningMessage: document.getElementById('editWarningMessage').value.trim(),
+      finalMessage: '',
+      needHumanConfirm: needHumanConfirm ? 1 : 0,
+      contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : ''
+    };
+    if (currentEditTaskId) {
+      await updateTask(currentEditTaskId, taskData);
+      const task = tasks.find(t => t.id === currentEditTaskId);
+      if (task) Object.assign(task, taskData);
+    } else {
+      taskData.lastCheckin = Date.now();
+      const newTask = await createTask(taskData);
+      tasks.push(newTask);
+      currentEditTaskId = newTask.id;
+    }
+    const updatedTask = tasks.find(t => t.id === currentEditTaskId);
+    if (updatedTask) populateEditPage(updatedTask);
+  } catch (error) {
+    console.error('保存任务失败:', error);
+    alert('保存任务失败：' + error.message);
+  }
+}
 
             // ---------- 事件绑定 ----------
             // 人工确认复选框变化：如果勾选且当前没有联系电话，则弹出电话模态框
