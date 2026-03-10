@@ -275,7 +275,8 @@ async function startServer() {
   }
 
   // ---------- 定时任务：每天下午13点运行一次（UTC 5:00）----------
-  cron.schedule('0 5 * * *', async () => {
+  // -----------3月部署改为每天上午9点-----
+  cron.schedule('0 1 * * *', async () => {
     console.log(`⏰ 定时任务触发：${new Date().toISOString()}`);
     try {
       const { rows: tasks } = await pool.query('SELECT * FROM tasks');
