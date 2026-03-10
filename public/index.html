@@ -605,39 +605,37 @@
             }
 
             // 保存任务（新建或更新）
-         async function saveEditTask() {
+        async function saveEditTask() {
   const loginEmail = localStorage.getItem('loginEmail');
   if (!loginEmail) return;
-  try {
-    const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
-    const taskData = {
-      name: document.getElementById('editTaskName').value.trim() || '未命名任务',
-      cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
-      warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
-      finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
-      warningEmail: loginEmail,
-      finalEmail: document.getElementById('editFinalEmail').value.trim(),
-      warningMessage: document.getElementById('editWarningMessage').value.trim(),
-      finalMessage: '',
-      needHumanConfirm: needHumanConfirm ? 1 : 0,
-      contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : ''
-    };
-    if (currentEditTaskId) {
-      await updateTask(currentEditTaskId, taskData);
-      const task = tasks.find(t => t.id === currentEditTaskId);
-      if (task) Object.assign(task, taskData);
-    } else {
-      taskData.lastCheckin = Date.now();
-      const newTask = await createTask(taskData);
-      tasks.push(newTask);
-      currentEditTaskId = newTask.id;
-    }
-    const updatedTask = tasks.find(t => t.id === currentEditTaskId);
-    if (updatedTask) populateEditPage(updatedTask);
-  } catch (error) {
-    console.error('保存任务失败:', error);
-    alert('保存任务失败：' + error.message);
+  const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
+  // 获取当前任务（如果是编辑状态）
+  const existingTask = currentEditTaskId ? tasks.find(t => t.id === currentEditTaskId) : null;
+  const taskData = {
+    name: document.getElementById('editTaskName').value.trim() || '未命名任务',
+    cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
+    warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
+    finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
+    warningEmail: loginEmail,
+    finalEmail: document.getElementById('editFinalEmail').value.trim(),
+    warningMessage: document.getElementById('editWarningMessage').value.trim(),
+    // 如果是编辑任务，保留已有的 finalMessage；新建任务则为空
+    finalMessage: existingTask ? existingTask.finalMessage || '' : '',
+    needHumanConfirm: needHumanConfirm ? 1 : 0,
+    contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : ''
+  };
+  if (currentEditTaskId) {
+    await updateTask(currentEditTaskId, taskData);
+    const task = tasks.find(t => t.id === currentEditTaskId);
+    if (task) Object.assign(task, taskData);
+  } else {
+    taskData.lastCheckin = Date.now();
+    const newTask = await createTask(taskData);
+    tasks.push(newTask);
+    currentEditTaskId = newTask.id;
   }
+  const updatedTask = tasks.find(t => t.id === currentEditTaskId);
+  if (updatedTask) populateEditPage(updatedTask);
 }
 
             // ---------- 事件绑定 ----------
