@@ -6,6 +6,7 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const dns = require('dns');
 const { promisify } = require('util');
+const path = require('path'); // +++ 新增：引入 path 模块 +++
 
 const resolve4 = promisify(dns.resolve4);
 
@@ -14,6 +15,9 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// +++ 新增：静态文件服务，提供 public 文件夹下的所有文件 +++
+app.use(express.static('public'));
 
 // ---------- 连接 PostgreSQL ----------
 const pool = new Pool({
@@ -544,6 +548,11 @@ async function startServer() {
   // 健康检查
   app.get('/health', (req, res) => {
     res.status(200).send('OK');
+  });
+
+  // +++ 新增：所有非 API 请求返回 index.html（支持前端路由） +++
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
   });
 
   // 启动服务器（无论 SMTP 是否成功，都启动）
