@@ -6,7 +6,7 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const dns = require('dns');
 const { promisify } = require('util');
-const path = require('path'); // +++ 新增：引入 path 模块 +++
+const path = require('path'); // +++ 引入 path 模块 +++
 
 const resolve4 = promisify(dns.resolve4);
 
@@ -16,7 +16,7 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// +++ 新增：静态文件服务，提供 public 文件夹下的所有文件 +++
+// +++ 静态文件服务，提供 public 文件夹下的所有文件 +++
 app.use(express.static('public'));
 
 // ---------- 连接 PostgreSQL ----------
@@ -274,8 +274,7 @@ async function startServer() {
     }
   }
 
-  // ---------- 定时任务：每天下午13点运行一次（UTC 5:00）----------
-  // -----------3月部署改为每天上午9点-----
+  // ---------- 定时任务：每天上午9点运行一次（UTC 1:00）----------
   cron.schedule('0 1 * * *', async () => {
     console.log(`⏰ 定时任务触发：${new Date().toISOString()}`);
     try {
@@ -551,8 +550,8 @@ async function startServer() {
     res.status(200).send('OK');
   });
 
-  // +++ 新增：所有非 API 请求返回 index.html（支持前端路由） +++
-  app.get('*', (req, res) => {
+  // +++ 修改：使用中间件处理所有未匹配的请求，返回 index.html（避免 path-to-regexp 错误） +++
+  app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
   });
 
