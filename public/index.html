@@ -5,75 +5,306 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>心灵保险 · 人工确认版</title>
     <style>
-        /* 样式与之前相同，此处新增电话输入模态框样式 */
-        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-        body { background:#1a1a1a; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }
-        .app-container { max-width:600px; width:100%; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.2); padding:24px; }
+        /* 全局样式（紧凑版 + 隐私政策链接） */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 8px;
+        }
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            padding: 16px;
+        }
         .page { display: block; }
-        .hidden { display:none !important; }
-        h1 { font-weight:500; font-size:2rem; color:#111; }
-        .subhead { color:#666; font-size:0.9rem; border-bottom:1px solid #eee; padding-bottom:0.75rem; margin-bottom:2rem; }
-        button { border:none; padding:12px 20px; border-radius:40px; font-size:1rem; font-weight:500; cursor:pointer; transition:0.15s; }
-        button.small { padding:6px 16px; font-size:0.9rem; }
-        button.primary { background:#007bff; border-color:#007bff; color:white; }
-        button.secondary { background:transparent; color:#2c2c2c; border:1px solid #ccc; }
-        .btn-manual { background:#e8f5e8; color:#2c2c2c; border:1px solid #a5d6a5; }
-        .btn-save { background:#fff3cd; color:#2c2c2c; border:1px solid #ffe69c; }
-        .btn-delete { background:#f8d7da; color:#2c2c2c; border:1px solid #f5c2c7; }
-        input, textarea, select { width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:40px; font-size:1rem; background:white; }
-        input:read-only { background:#f0f0f0; color:#666; border-color:#ccc; }
-        textarea { border-radius:24px; min-height:80px; }
-        .card { background:#fafafa; border-radius:24px; padding:20px; margin-bottom:20px; border:1px solid #eaeaea; cursor:pointer; transition:0.2s; }
-        .card:hover { box-shadow:0 5px 15px rgba(0,0,0,0.1); }
-        .task-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap; }
-        .task-title-input { font-size:1.2rem; font-weight:600; border:1px solid transparent; background:#f0f0f0; border-radius:40px; padding:8px 16px; width:auto; min-width:150px; flex:2; }
-        .status-badge { background:#eee; padding:6px 12px; border-radius:40px; font-size:0.8rem; font-weight:500; white-space:nowrap; }
-        .status-badge.normal { background:#d4edda; color:#155724; }
-        .status-badge.warning { background:#fce4b6; color:#8a5f00; }
-        .status-badge.final { background:#f8d7da; color:#a11f2c; }
-        .row-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-        .col-block { padding: 12px 8px; border-radius: 16px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-        .col-block label { display: block; font-size: 0.9rem; font-weight: 600; color: #444; margin-bottom: 6px; text-align: center; }
+        .hidden { display: none !important; }
+        h1 {
+            font-weight: 500;
+            font-size: 1.8rem;
+            color: #111;
+        }
+        .subhead {
+            color: #666;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.2rem;
+        }
+        button {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        button.small {
+            padding: 5px 12px;
+            font-size: 0.85rem;
+        }
+        button.primary { background: #007bff; color: white; }
+        button.secondary { background: transparent; color: #2c2c2c; border: 1px solid #ccc; }
+        .btn-manual { background: #e8f5e8; color: #2c2c2c; border: 1px solid #a5d6a5; }
+        .btn-save { background: #fff3cd; color: #2c2c2c; border: 1px solid #ffe69c; }
+        .btn-delete { background: #f8d7da; color: #2c2c2c; border: 1px solid #f5c2c7; }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            background: white;
+        }
+        input:read-only { background: #f0f0f0; color: #666; border-color: #ccc; }
+        textarea {
+            border-radius: 20px;
+            min-height: 70px;
+        }
+        .card {
+            background: #fafafa;
+            border-radius: 20px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid #eaeaea;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .task-title-input {
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            background: #f0f0f0;
+            border-radius: 40px;
+            padding: 6px 12px;
+            width: auto;
+            min-width: 130px;
+            flex: 2;
+        }
+        .status-badge {
+            background: #eee;
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .status-badge.normal { background: #d4edda; color: #155724; }
+        .status-badge.warning { background: #fce4b6; color: #8a5f00; }
+        .status-badge.final { background: #f8d7da; color: #a11f2c; }
+
+        .human-badge {
+            padding: 3px 6px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .human-badge.need {
+            background: #f8d7da;
+            color: #a11f2c;
+        }
+        .human-badge.not-need {
+            background: #fff3cd;
+            color: #8a5f00;
+        }
+
+        .row-3col {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .col-block {
+            padding: 8px 4px;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .col-block label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 4px;
+            text-align: center;
+        }
         .cycle-block { background: #e8f5e8; }
         .warning-block { background: #fff3cd; }
         .final-block { background: #f8d7da; }
-        .info-box { background: #e9ecef; border-radius: 16px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.75rem; color: #495057; line-height: 1.4; }
-        .email-full-width { margin-bottom: 14px; }
-        .email-full-width label { font-size: 0.9rem; font-weight: 600; color: #444; margin-bottom: 4px; display: block; }
+        .info-box {
+            background: #e9ecef;
+            border-radius: 12px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 0.7rem;
+            color: #495057;
+            line-height: 1.3;
+        }
+        .email-full-width { margin-bottom: 8px; }
+        .email-full-width label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 2px;
+            display: block;
+        }
         .email-full-width input { width: 100%; }
-        .button-group-bottom { display: flex; gap: 8px; margin-top: 14px; }
-        .button-group-bottom button { flex: 1; text-align: center; padding: 10px 0; font-size: 0.9rem; }
-        .edit-final-container { margin: 6px 0 14px 0; text-align: center; }
-        .edit-final-container button { width: 100%; background: #6c757d; border-color: #6c757d; color: white; padding: 10px; font-size: 0.9rem; }
-        .recent-checkin { font-size: 0.7rem; color: #999; margin-top: 10px; text-align: right; }
-        .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; z-index:1000; }
-        .modal-card { background:white; border-radius:32px; padding:28px; max-width:450px; width:100%; }
-        .hidden { display:none !important; }
-        .grey-bg { background:#f2f2f2; border-radius:40px; padding:4px 12px; color:#333; font-size:0.85rem; }
-        .lang-switch { display:flex; gap:8px; align-items:center; }
-        .auto-checkin-note { font-size:0.8rem; color:#888; margin-top:8px; text-align:center; }
-        .splash-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; text-align: center; }
-        .welcome-box { background: #f0f0f0; border-radius: 24px; padding: 30px 20px; margin: 20px 0; width: 100%; font-size: 1.5rem; color: #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); text-align: center; white-space: pre-line; }
-        .login-input { width: 100%; margin: 10px 0; }
-        .login-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .button-group-bottom {
+            display: flex;
+            gap: 4px;
+            margin-top: 10px;
+        }
+        .button-group-bottom button {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 0.85rem;
+        }
+        .edit-final-container { margin: 4px 0 10px 0; text-align: center; }
+        .edit-final-container button {
+            width: 100%;
+            background: #6c757d;
+            color: white;
+            padding: 8px;
+            font-size: 0.85rem;
+        }
+        .recent-checkin {
+            font-size: 0.65rem;
+            color: #999;
+            margin-top: 8px;
+            text-align: right;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 24px;
+            padding: 16px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .grey-bg {
+            background: #f2f2f2;
+            border-radius: 40px;
+            padding: 4px 10px;
+            color: #333;
+            font-size: 0.8rem;
+        }
+        .lang-switch { display: flex; gap: 6px; align-items: center; }
+        .auto-checkin-note {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 6px;
+            text-align: center;
+        }
+        .splash-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 65vh;
+            text-align: center;
+        }
+        .welcome-box {
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 20px 15px;
+            margin: 15px 0;
+            width: 100%;
+            font-size: 1.3rem;
+            color: #333;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            white-space: pre-line;
+        }
+        .login-input { width: 100%; margin: 6px 0; }
+        .login-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
         .login-row input { flex: 2; margin-bottom: 0; }
         .login-row button { flex: 1; }
-        .task-list-card { margin-bottom:15px; }
-        .task-list-name { font-size:1.3rem; font-weight:600; margin-bottom:8px; }
-        .task-list-info { display:flex; justify-content:space-between; align-items:center; }
-        .task-list-email { color:#555; font-size:0.9rem; }
-        .back-btn { margin-top:20px; }
-        .checkbox-row { display:flex; align-items:center; gap:8px; margin:10px 0; }
-        .phone-input-group { display:flex; gap:8px; align-items:center; }
-        .country-code { width:30%; }
-        .phone-number { width:70%; }
+        .task-list-card { margin-bottom: 10px; }
+        .task-list-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .task-list-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .task-list-email { color: #555; font-size: 0.8rem; }
+        .back-btn { margin-top: 15px; }
+        .checkbox-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+        .phone-input-group { display: flex; gap: 6px; align-items: center; }
+        .country-code { width: 30%; }
+        .phone-number { width: 70%; }
+
+        /* 隐私政策链接样式 */
+        .privacy-link {
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+        }
+        .privacy-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .privacy-link a:hover {
+            text-decoration: underline;
+        }
+        /* 隐私政策模态框内容滚动 */
+        .privacy-content {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            padding-right: 4px;
+        }
+        .privacy-content p {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
     <div class="app-container" id="appContainer">
         <!-- 启动页（登录页） -->
         <div id="splashPage" class="page">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h1 data-i18n="appName">心灵保险</h1>
                 <div class="lang-switch">
                     <button class="small secondary lang-btn" data-lang="zh">中文</button>
@@ -84,16 +315,22 @@
                 <div class="welcome-box" data-i18n="welcomeText">欢迎进入心灵保险！\n有意外，无遗憾！</div>
                 <input type="email" id="loginEmail" class="login-input" placeholder="请输入邮箱" value="">
                 <div class="login-row">
-                    <input type="text" id="loginCode" placeholder="验证码">
+                    <input type="text" id="loginCode" placeholder="验证码/授权码">
                     <button class="secondary small" id="sendLoginCodeBtn" data-i18n="sendCodeBtn">获取验证码</button>
                 </div>
-                <button class="enter-btn" id="verifyAndEnterBtn" data-i18n="verifyAndEnter">验证并进入心灵保险</button>
+                <button class="enter-btn" id="verifyAndEnterBtn" data-i18n="verifyAndEnter">验证并进入</button>
+
+                <!-- 隐私政策和用户协议链接 -->
+                <div class="privacy-link">
+                    <a href="#" id="showPrivacyLink" data-i18n="privacyLink">隐私政策</a> |
+                    <a href="#" id="showTermsLink" data-i18n="termsLink">用户协议</a>
+                </div>
             </div>
         </div>
 
         <!-- 任务清单总览页 -->
         <div id="taskListPage" class="page hidden">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h1 data-i18n="appName">心灵保险</h1>
                 <div class="lang-switch">
                     <button class="small secondary lang-btn" data-lang="zh">中文</button>
@@ -102,12 +339,12 @@
             </div>
             <div class="subhead" data-i18n="taskListTitle">任务清单总览</div>
             <div id="taskListContainer"></div>
-            <button id="addNewTaskBtn" style="width:100%; background:white; color:#2c2c2c; border:1px dashed #aaa; margin-top:20px;" data-i18n="addTaskBtn">+ 创建新打卡任务</button>
+            <button id="addNewTaskBtn" style="width:100%; background:white; color:#2c2c2c; border:1px dashed #aaa; margin-top:12px;" data-i18n="addTaskBtn">+ 创建新打卡任务</button>
         </div>
 
         <!-- 任务编辑页（单个任务编辑） -->
         <div id="taskEditPage" class="page hidden">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <h1 data-i18n="appName">心灵保险</h1>
                 <div class="lang-switch">
                     <button class="small secondary lang-btn" data-lang="zh">中文</button>
@@ -158,8 +395,8 @@
                 </div>
 
                 <!-- 编辑终止通知按钮 + 人工确认复选框 -->
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-                    <button id="editFinalBtn" class="small" style="background:#6c757d; border-color:#6c757d; color:white; flex:1;" data-i18n="editFinalBtn">编辑终止通知</button>
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                    <button id="editFinalBtn" class="small" style="background:#6c757d; color:white; flex:1;" data-i18n="editFinalBtn">编辑终止通知</button>
                     <label style="display:flex; align-items:center; gap:4px; white-space:nowrap;">
                         <input type="checkbox" id="needHumanConfirmCheckbox">
                         <span data-i18n="needHumanConfirmLabel">需要人工确认</span>
@@ -172,27 +409,27 @@
                     <input type="text" id="editWarningMessage" placeholder="例如：请及时打卡">
                 </div>
 
-                <!-- 底部按钮组：手动打卡、保存任务、删除任务、返回清单 -->
+                <!-- 底部按钮组：手动打卡、保存任务、删除任务 -->
                 <div class="button-group-bottom">
                     <button id="editManualCheckinBtn" class="small btn-manual" data-i18n="manualCheckinBtn">手动打卡</button>
                     <button id="editSaveTaskBtn" class="small btn-save" data-i18n="saveTaskBtn">保存任务</button>
                     <button id="editDeleteTaskBtn" class="small btn-delete" data-i18n="deleteBtn">删除任务</button>
                 </div>
-                <!-- 返回按钮单独一行 -->
-                <button id="backToTaskListBtn" class="small secondary" style="width:100%; margin-top:10px;" data-i18n="backToList">返回任务清单</button>
+                <!-- 返回按钮 -->
+                <button id="backToTaskListBtn" class="small secondary" style="width:100%; margin-top:8px;" data-i18n="backToList">返回任务清单</button>
 
                 <!-- 最近打卡时间 -->
                 <div id="editLastCheckin" class="recent-checkin">最近打卡：从未</div>
             </div>
         </div>
 
-        <!-- 编辑终止通知模态框（无验证码） -->
+        <!-- 编辑终止通知模态框 -->
         <div id="editFinalModal" class="modal-overlay hidden">
             <div class="modal-card">
-                <h3 style="margin-bottom:20px;" data-i18n="editFinalTitle">✉️ 编辑终止通知邮件</h3>
+                <h3 style="margin-bottom:12px;" data-i18n="editFinalTitle">✉️ 编辑终止通知邮件</h3>
                 <label data-i18n="finalMsgLabel">终止任务通知邮件内容（给监督人）</label>
-                <textarea id="editFinalMsg" placeholder="例如：用户已连续多日未打卡，任务终止..." rows="4"></textarea>
-                <div class="modal-actions" style="display:flex; gap:12px; margin-top:20px;">
+                <textarea id="editFinalMsg" placeholder="例如：用户已连续多日未打卡，任务终止..." rows="3"></textarea>
+                <div class="modal-actions" style="display:flex; gap:10px; margin-top:12px;">
                     <button class="secondary" id="editFinalCancelBtn" data-i18n="cancelBtn">取消</button>
                     <button id="editFinalSaveBtn" data-i18n="saveBtn">保存</button>
                 </div>
@@ -202,8 +439,8 @@
         <!-- 人工确认电话输入模态框 -->
         <div id="phoneModal" class="modal-overlay hidden">
             <div class="modal-card">
-                <h3 style="margin-bottom:20px;" data-i18n="phoneModalTitle">请输入联系电话</h3>
-                <p style="margin-bottom:16px; color:#555;" data-i18n="phoneModalHint">客服将通过此电话与您联系确认</p>
+                <h3 style="margin-bottom:12px;" data-i18n="phoneModalTitle">请输入联系电话</h3>
+                <p style="margin-bottom:10px; color:#555;" data-i18n="phoneModalHint">客服将通过此电话与您联系确认</p>
                 <div class="phone-input-group">
                     <select id="countryCode" class="country-code">
                         <option value="+86">+86 (中国)</option>
@@ -217,9 +454,46 @@
                     </select>
                     <input type="tel" id="phoneNumber" class="phone-number" placeholder="手机号码" value="">
                 </div>
-                <div class="modal-actions" style="display:flex; gap:12px; margin-top:20px;">
+                <div class="modal-actions" style="display:flex; gap:10px; margin-top:12px;">
                     <button class="secondary" id="phoneCancelBtn" data-i18n="cancelBtn">取消</button>
                     <button id="phoneSaveBtn" data-i18n="saveBtn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 等待授权提示模态框 -->
+        <div id="waitAuthModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 style="margin-bottom:12px;">⏳ 等待授权</h3>
+                <p style="margin-bottom:10px; color:#555;" id="waitAuthMessage">您的邮箱正在等待授权，请等待授权码！</p>
+                <div style="text-align:center;">
+                    <button id="closeWaitAuthBtn" class="primary">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 隐私政策模态框 -->
+        <div id="privacyModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 data-i18n="privacyTitle" style="margin-bottom:12px;">🔒 隐私政策</h3>
+                <div class="privacy-content" id="privacyContent">
+                    <!-- 内容由JavaScript动态填充 -->
+                </div>
+                <div style="text-align:right;">
+                    <button id="closePrivacyBtn" data-i18n="closeBtn" class="primary small">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户协议模态框 -->
+        <div id="termsModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 data-i18n="termsTitle" style="margin-bottom:12px;">📜 用户协议</h3>
+                <div class="privacy-content" id="termsContent">
+                    <!-- 内容由JavaScript动态填充 -->
+                </div>
+                <div style="text-align:right;">
+                    <button id="closeTermsBtn" data-i18n="closeBtn" class="primary small">关闭</button>
                 </div>
             </div>
         </div>
@@ -227,19 +501,15 @@
 
     <script>
         (function() {
-            const API_BASE = 'https://mindapp-v1.onrender.com/api'; // 请替换为实际后端地址
+            const API_BASE = 'https://mindapp-v1.onrender.com/api'; // 请根据实际后端地址修改
 
-            // ---------- 输出 UTC 时间用于调试 ----------
-            console.log('🕐 客户端时间（本地）:', new Date().toString());
-            console.log('🕐 客户端时间（UTC）:', new Date().toISOString());
-
-            // ---------- 语言包（新增人工确认相关文字）----------
+            // ---------- 语言包（包含所有中英文文本）----------
             const i18n = {
                 zh: {
                     appName: '心灵保险',
                     welcomeText: '欢迎进入心灵保险！ \n 有意外，无遗憾！',
                     sendCodeBtn: '获取验证码',
-                    verifyAndEnter: '验证并进入心灵保险',
+                    verifyAndEnter: '验证并进入',
                     taskListTitle: '任务清单总览',
                     addTaskBtn: '+ 创建新打卡任务',
                     editTaskSubhead: '编辑任务',
@@ -279,11 +549,36 @@
                     taskNamePlaceholder: '任务名称',
                     lastCheckinLabel: '最近打卡：',
                     never: '从未',
-                    finalEmailPlaceholder: '监督人邮箱'
+                    finalEmailPlaceholder: '监督人邮箱',
+                    // 新增隐私政策相关
+                    privacyLink: '隐私政策',
+                    termsLink: '用户协议',
+                    privacyTitle: '🔒 隐私政策',
+                    termsTitle: '📜 用户协议',
+                    closeBtn: '关闭',
+                    privacyText: `
+                        <p>我们（心灵保险）非常重视您的隐私。本政策说明我们如何收集、使用和保护您的个人信息。</p>
+                        <p><strong>1. 信息收集</strong><br>我们收集您主动提供的邮箱地址、联系电话、任务内容及打卡时间。这些信息用于登录验证、发送提醒通知及客服人工确认。</p>
+                        <p><strong>2. 信息使用</strong><br>您的信息仅用于本应用的核心功能，不会出售或出租给任何第三方。我们可能通过邮件（SMTP）发送通知，仅传输必要信息。</p>
+                        <p><strong>3. 数据存储</strong><br>数据存储于安全的 PostgreSQL 数据库，传输过程加密。我们采取合理措施保护信息不被未经授权访问。</p>
+                        <p><strong>4. 用户权利</strong><br>您可以随时在任务编辑页修改或删除您的任务。如需删除账号，请联系我们（邮箱：support@mindapp.com），我们将在合理时间内处理。</p>
+                        <p><strong>5. 儿童隐私</strong><br>本应用不面向13岁以下儿童。若发现误收集了儿童信息，我们将立即删除。</p>
+                        <p><strong>6. 政策更新</strong><br>我们可能不时更新本政策，变更会在本页面公告。继续使用即表示您接受更新后的政策。</p>
+                        <p>最近更新：2026年3月11日</p>
+                    `,
+                    termsText: `
+                        <p>欢迎使用心灵保险。使用本应用即表示您同意以下条款：</p>
+                        <p><strong>1. 服务说明</strong><br>本应用提供打卡提醒和通知服务，不承担因用户未打卡导致的任何直接或间接损失。</p>
+                        <p><strong>2. 用户责任</strong><br>您需确保提供的信息真实有效，对使用本应用的行为负责。禁止利用本应用传播违法信息或进行恶意活动。</p>
+                        <p><strong>3. 服务变更与终止</strong><br>我们保留随时修改或终止服务的权利，恕不另行通知。</p>
+                        <p><strong>4. 免责声明</strong><br>在适用法律允许的最大范围内，本应用按“现状”提供，不提供任何明示或暗示的担保。</p>
+                        <p><strong>5. 法律管辖</strong><br>本协议受中华人民共和国法律管辖。</p>
+                        <p>最近更新：2026年3月11日</p>
+                    `
                 },
                 en: {
                     appName: 'Mind Insurance',
-                    welcomeText: 'Welcome to Mind Insurance! \n There are accidents,but no regrets!',
+                    welcomeText: 'Welcome to Mind Insurance! \n There are accidents, but no regrets!',
                     sendCodeBtn: 'Get Code',
                     verifyAndEnter: 'Verify & Enter',
                     taskListTitle: 'Task List',
@@ -325,12 +620,38 @@
                     taskNamePlaceholder: 'Task name',
                     lastCheckinLabel: 'Last check-in: ',
                     never: 'Never',
-                    finalEmailPlaceholder: 'Supervisor email'
+                    finalEmailPlaceholder: 'Supervisor email',
+                    // 英文隐私政策相关
+                    privacyLink: 'Privacy Policy',
+                    termsLink: 'Terms of Service',
+                    privacyTitle: '🔒 Privacy Policy',
+                    termsTitle: '📜 Terms of Service',
+                    closeBtn: 'Close',
+                    privacyText: `
+                        <p>We (Mind Insurance) value your privacy. This policy explains how we collect, use, and protect your personal information.</p>
+                        <p><strong>1. Information Collection</strong><br>We collect the email address, contact phone, task content, and check-in time you voluntarily provide. This information is used for login verification, sending reminders, and customer service confirmation.</p>
+                        <p><strong>2. Use of Information</strong><br>Your information is used solely for the core functions of this app. We do not sell or rent your data to any third party. We may send notifications via email (SMTP), transmitting only necessary information.</p>
+                        <p><strong>3. Data Storage</strong><br>Data is stored in a secure PostgreSQL database with encrypted transmission. We take reasonable measures to protect your information from unauthorized access.</p>
+                        <p><strong>4. User Rights</strong><br>You can modify or delete your tasks at any time in the task edit page. To delete your account, please contact us (email: support@mindapp.com), and we will process it within a reasonable time.</p>
+                        <p><strong>5. Children's Privacy</strong><br>This app is not directed to children under 13. If we become aware that we have inadvertently collected information from a child, we will delete it immediately.</p>
+                        <p><strong>6. Policy Updates</strong><br>We may update this policy from time to time. Changes will be announced on this page. Continued use implies acceptance of the updated policy.</p>
+                        <p>Last updated: March 11, 2026</p>
+                    `,
+                    termsText: `
+                        <p>Welcome to Mind Insurance. By using this app, you agree to the following terms:</p>
+                        <p><strong>1. Service Description</strong><br>This app provides check-in reminders and notification services. We are not liable for any direct or indirect losses resulting from failure to check in.</p>
+                        <p><strong>2. User Responsibilities</strong><br>You must ensure the information you provide is accurate and valid. You are responsible for your use of the app. It is prohibited to use this app to disseminate illegal information or engage in malicious activities.</p>
+                        <p><strong>3. Service Changes and Termination</strong><br>We reserve the right to modify or terminate the service at any time without prior notice.</p>
+                        <p><strong>4. Disclaimer</strong><br>To the maximum extent permitted by applicable law, this app is provided "as is" without any warranties, express or implied.</p>
+                        <p><strong>5. Governing Law</strong><br>These terms are governed by the laws of the People's Republic of China.</p>
+                        <p>Last updated: March 11, 2026</p>
+                    `
                 }
             };
 
             let currentLang = localStorage.getItem('mind_insurance_lang') || 'zh';
 
+            // ---------- 通用函数：更新界面语言 ----------
             function updateUILanguage() {
                 document.querySelectorAll('[data-i18n]').forEach(el => {
                     const key = el.getAttribute('data-i18n');
@@ -344,6 +665,9 @@
                         }
                     }
                 });
+                // 更新隐私内容和协议内容（因为它们是动态HTML）
+                document.getElementById('privacyContent').innerHTML = i18n[currentLang].privacyText;
+                document.getElementById('termsContent').innerHTML = i18n[currentLang].termsText;
             }
 
             function bindLangButtons() {
@@ -366,7 +690,7 @@
                 });
             }
 
-            // ---------- 登录验证码相关 ----------
+            // ---------- 登录验证码相关（含首次授权逻辑）----------
             document.getElementById('sendLoginCodeBtn').addEventListener('click', async () => {
                 const email = document.getElementById('loginEmail').value.trim();
                 if (!email) {
@@ -383,49 +707,34 @@
                     if (res.ok) {
                         alert(i18n[currentLang].codeSent);
                     } else {
-                        alert(data.error || i18n[currentLang].codeSendFailed);
+                        if (res.status === 403 && data.error === 'NEED_AUTHORIZATION') {
+                            document.getElementById('waitAuthMessage').innerText = data.message || '您的邮箱正在等待授权，请等待授权码！';
+                            document.getElementById('waitAuthModal').classList.remove('hidden');
+                        } else {
+                            alert(data.error || i18n[currentLang].codeSendFailed);
+                        }
                     }
                 } catch (err) {
                     alert(i18n[currentLang].apiError);
                 }
             });
 
-            // ---------- 自动打卡函数 ----------
-            async function tryAutoCheckin(email) {
-                const today = new Date().toISOString().split('T')[0];
-                const lastAuto = localStorage.getItem('lastAutoCheckinDate');
-                if (lastAuto === today) {
-                    console.log('今日已自动打卡，跳过');
-                    return;
+            // 关闭等待授权模态框
+            document.getElementById('closeWaitAuthBtn').addEventListener('click', () => {
+                document.getElementById('waitAuthModal').classList.add('hidden');
+            });
+            document.getElementById('waitAuthModal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('waitAuthModal')) {
+                    document.getElementById('waitAuthModal').classList.add('hidden');
                 }
-                try {
-                    const res = await fetch(`${API_BASE}/auto-checkin?email=${encodeURIComponent(email)}`, {
-                        method: 'POST'
-                    });
-                    if (res.ok) {
-                        localStorage.setItem('lastAutoCheckinDate', today);
-                        console.log('自动打卡成功，重新获取任务列表');
-                        tasks = await fetchTasks();
-                        if (!document.getElementById('taskListPage').classList.contains('hidden')) {
-                            renderTaskList();
-                        }
-                    } else {
-                        console.warn('自动打卡失败，稍后重试');
-                    }
-                } catch (err) {
-                    console.error('自动打卡请求失败', err);
-                }
-            }
+            });
 
+            // ---------- 验证登录码（已授权用户验证码 / 首次授权码）----------
             document.getElementById('verifyAndEnterBtn').addEventListener('click', async () => {
                 const email = document.getElementById('loginEmail').value.trim();
                 const code = document.getElementById('loginCode').value.trim();
-                if (!email) {
-                    alert(i18n[currentLang].loginEmailRequired);
-                    return;
-                }
-                if (!code) {
-                    alert(i18n[currentLang].codeRequired);
+                if (!email || !code) {
+                    alert(i18n[currentLang].loginEmailRequired || '请填写邮箱和验证码');
                     return;
                 }
                 try {
@@ -437,13 +746,13 @@
                     const data = await res.json();
                     if (res.ok) {
                         localStorage.setItem('loginEmail', email);
-                        alert(i18n[currentLang].verifySuccess);
+                        alert(i18n[currentLang].verifySuccess || '验证成功');
                         await tryAutoCheckin(email);
                         document.getElementById('splashPage').classList.add('hidden');
                         document.getElementById('taskListPage').classList.remove('hidden');
                         renderTaskList();
                     } else {
-                        alert(data.error || i18n[currentLang].verifyFailed);
+                        alert(data.error || i18n[currentLang].verifyFailed || '验证失败');
                     }
                 } catch (err) {
                     alert(i18n[currentLang].apiError);
@@ -501,10 +810,37 @@
                 if (!res.ok) throw new Error('打卡失败');
             }
 
+            // ---------- 自动打卡函数 ----------
+            async function tryAutoCheckin(email) {
+                const today = new Date().toISOString().split('T')[0];
+                const lastAuto = localStorage.getItem('lastAutoCheckinDate');
+                if (lastAuto === today) {
+                    console.log('今日已自动打卡，跳过');
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_BASE}/auto-checkin?email=${encodeURIComponent(email)}`, {
+                        method: 'POST'
+                    });
+                    if (res.ok) {
+                        localStorage.setItem('lastAutoCheckinDate', today);
+                        console.log('自动打卡成功，重新获取任务列表');
+                        tasks = await fetchTasks();
+                        if (!document.getElementById('taskListPage').classList.contains('hidden')) {
+                            renderTaskList();
+                        }
+                    } else {
+                        console.warn('自动打卡失败，稍后重试');
+                    }
+                } catch (err) {
+                    console.error('自动打卡请求失败', err);
+                }
+            }
+
             // ---------- 状态计算 ----------
             let tasks = [];
-            let currentEditTaskId = null; // 当前编辑的任务ID，null表示新建
-            let tempNeedHumanConfirm = false; // 暂存复选框状态（用于打开电话模态框前）
+            let currentEditTaskId = null;
+            let tempNeedHumanConfirm = false;
 
             function getDaysSince(timestamp) {
                 const now = Date.now();
@@ -550,11 +886,20 @@
                         statusClass = 'final';
                         statusText = i18n[currentLang].statusFinal;
                     }
+
+                    const needHuman = task.needHumanConfirm === 1 || task.needHumanConfirm === true;
+                    const humanBadge = needHuman
+                        ? '<span class="human-badge need">人工确认</span>'
+                        : '<span class="human-badge not-need">不需人工</span>';
+
                     html += `
                         <div class="card task-list-card" data-task-id="${task.id}">
                             <div class="task-list-name">${escapeHtml(task.name)}</div>
                             <div class="task-list-info">
-                                <span class="task-list-email">终止通知人：${escapeHtml(task.finalEmail || '未设置')}</span>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="task-list-email">终止通知人：${escapeHtml(task.finalEmail || '未设置')}</span>
+                                    ${humanBadge}
+                                </div>
                                 <span class="status-badge ${statusClass}">${statusText}</span>
                             </div>
                         </div>
@@ -585,10 +930,8 @@
                 document.getElementById('editFinalEmail').value = task.finalEmail || '';
                 document.getElementById('editWarningMessage').value = task.warningMessage || '';
                 document.getElementById('editLastCheckin').innerText = i18n[currentLang].lastCheckinLabel + (task.lastCheckin ? new Date(task.lastCheckin).toLocaleString() : i18n[currentLang].never);
-                // 人工确认复选框
                 const needHumanConfirm = task.needHumanConfirm === 1 || task.needHumanConfirm === true;
                 document.getElementById('needHumanConfirmCheckbox').checked = needHumanConfirm;
-                // 如果有联系电话，可以暂存但电话模态框单独处理
                 updateEditPageStatus();
             }
 
@@ -605,46 +948,42 @@
             }
 
             // 保存任务（新建或更新）
-        async function saveEditTask() {
-  const loginEmail = localStorage.getItem('loginEmail');
-  if (!loginEmail) return;
-  const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
-  // 获取当前任务（如果是编辑状态）
-  const existingTask = currentEditTaskId ? tasks.find(t => t.id === currentEditTaskId) : null;
-  const taskData = {
-    name: document.getElementById('editTaskName').value.trim() || '未命名任务',
-    cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
-    warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
-    finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
-    warningEmail: loginEmail,
-    finalEmail: document.getElementById('editFinalEmail').value.trim(),
-    warningMessage: document.getElementById('editWarningMessage').value.trim(),
-    // 如果是编辑任务，保留已有的 finalMessage；新建任务则为空
-    finalMessage: existingTask ? existingTask.finalMessage || '' : '',
-    needHumanConfirm: needHumanConfirm ? 1 : 0,
-    contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : ''
-  };
-  if (currentEditTaskId) {
-    await updateTask(currentEditTaskId, taskData);
-    const task = tasks.find(t => t.id === currentEditTaskId);
-    if (task) Object.assign(task, taskData);
-  } else {
-    taskData.lastCheckin = Date.now();
-    const newTask = await createTask(taskData);
-    tasks.push(newTask);
-    currentEditTaskId = newTask.id;
-  }
-  const updatedTask = tasks.find(t => t.id === currentEditTaskId);
-  if (updatedTask) populateEditPage(updatedTask);
-}
+            async function saveEditTask() {
+                const loginEmail = localStorage.getItem('loginEmail');
+                if (!loginEmail) return;
+                const needHumanConfirm = document.getElementById('needHumanConfirmCheckbox').checked;
+                const existingTask = currentEditTaskId ? tasks.find(t => t.id === currentEditTaskId) : null;
+                const taskData = {
+                    name: document.getElementById('editTaskName').value.trim() || '未命名任务',
+                    cycleDays: parseInt(document.getElementById('editCycleDays').value, 10) || 1,
+                    warningDays: parseInt(document.getElementById('editWarningDays').value, 10) || 1,
+                    finalDays: parseInt(document.getElementById('editFinalDays').value, 10) || 1,
+                    warningEmail: loginEmail,
+                    finalEmail: document.getElementById('editFinalEmail').value.trim(),
+                    warningMessage: document.getElementById('editWarningMessage').value.trim(),
+                    finalMessage: existingTask ? existingTask.finalMessage || '' : '',
+                    needHumanConfirm: needHumanConfirm ? 1 : 0,
+                    contactPhone: needHumanConfirm ? (localStorage.getItem('tempContactPhone') || '') : ''
+                };
+                if (currentEditTaskId) {
+                    await updateTask(currentEditTaskId, taskData);
+                    const task = tasks.find(t => t.id === currentEditTaskId);
+                    if (task) Object.assign(task, taskData);
+                } else {
+                    taskData.lastCheckin = Date.now();
+                    const newTask = await createTask(taskData);
+                    tasks.push(newTask);
+                    currentEditTaskId = newTask.id;
+                }
+                const updatedTask = tasks.find(t => t.id === currentEditTaskId);
+                if (updatedTask) populateEditPage(updatedTask);
+            }
 
             // ---------- 事件绑定 ----------
-            // 人工确认复选框变化：如果勾选且当前没有联系电话，则弹出电话模态框
+            // 人工确认复选框变化
             document.getElementById('needHumanConfirmCheckbox').addEventListener('change', (e) => {
                 if (e.target.checked) {
-                    // 弹出电话模态框（先保存当前任务ID到全局）
                     tempNeedHumanConfirm = true;
-                    // 预填已有电话（如果有）
                     if (currentEditTaskId) {
                         const task = tasks.find(t => t.id === currentEditTaskId);
                         if (task && task.contactPhone) {
@@ -665,7 +1004,6 @@
                     }
                     document.getElementById('phoneModal').classList.remove('hidden');
                 } else {
-                    // 取消勾选，清除电话
                     localStorage.removeItem('tempContactPhone');
                 }
             });
@@ -683,7 +1021,6 @@
             });
 
             document.getElementById('phoneCancelBtn').addEventListener('click', () => {
-                // 取消勾选复选框
                 document.getElementById('needHumanConfirmCheckbox').checked = false;
                 localStorage.removeItem('tempContactPhone');
                 document.getElementById('phoneModal').classList.add('hidden');
@@ -693,7 +1030,7 @@
                 if (!currentEditTaskId) return;
                 const task = tasks.find(t => t.id === currentEditTaskId);
                 if (!task) return;
-                await saveEditTask(); // 先保存当前修改，以防丢失
+                await saveEditTask();
                 document.getElementById('editFinalMsg').value = task.finalMessage || '';
                 document.getElementById('editFinalModal').classList.remove('hidden');
             });
@@ -788,10 +1125,40 @@
                 document.getElementById('taskEditPage').classList.remove('hidden');
             });
 
-            // 初始化
+            // 隐私政策和用户协议模态框控制
+            document.getElementById('showPrivacyLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('privacyModal').classList.remove('hidden');
+            });
+            document.getElementById('closePrivacyBtn').addEventListener('click', () => {
+                document.getElementById('privacyModal').classList.add('hidden');
+            });
+            document.getElementById('privacyModal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('privacyModal')) {
+                    document.getElementById('privacyModal').classList.add('hidden');
+                }
+            });
+
+            document.getElementById('showTermsLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('termsModal').classList.remove('hidden');
+            });
+            document.getElementById('closeTermsBtn').addEventListener('click', () => {
+                document.getElementById('termsModal').classList.add('hidden');
+            });
+            document.getElementById('termsModal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('termsModal')) {
+                    document.getElementById('termsModal').classList.add('hidden');
+                }
+            });
+
+            // ---------- 初始化 ----------
             window.addEventListener('DOMContentLoaded', () => {
                 updateUILanguage();
                 bindLangButtons();
+                // 预填充隐私内容
+                document.getElementById('privacyContent').innerHTML = i18n[currentLang].privacyText;
+                document.getElementById('termsContent').innerHTML = i18n[currentLang].termsText;
             });
 
             function escapeHtml(unsafe) {
