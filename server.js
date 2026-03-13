@@ -164,6 +164,34 @@ async function startServer() {
 
   // ========== 1. API 路由（所有 /api 开头的请求） ==========
 
+  // 手工触发定时任务检查（已添加鉴权，需在请求时加上 ?token=你的CUSTOMER_TOKEN）
+  app.post('/api/trigger-check', async (req, res) => {
+    // 增加 token 验证，防止被恶意调用
+    const { token } = req.query;
+    if (token !== process.env.CUSTOMER_TOKEN) {
+      return res.status(403).json({ error: '无权访问' });
+    }
+
+    console.log(`🔧 手工触发定时任务检查：${new Date().toISOString()}`);
+    try {
+      const { rows: tasks } = await pool.query('SELECT * FROM tasks');
+      let result = { total: tasks.length, processed: 0, errors: [] };
+      for (const task of tasks) {
+        try {
+          await checkTask(task);
+          result.processed++;
+        } catch (err) {
+          result.errors.push({ taskId: task.id, error: err.message });
+          console.error(`检查任务 ${task.id} 失败:`, err);
+        }
+      }
+      res.json({ success: true, message: '手工检查完成', result });
+    } catch (err) {
+      console.error('手工触发检查失败:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // 发送登录验证码（已授权用户）或处理授权请求
   app.post('/api/send-login-code', async (req, res) => {
     const { email } = req.body;
@@ -301,10 +329,17 @@ async function startServer() {
     }
   });
 
-  // 获取当前用户的所有任务
+  // 获取当前用户的所有任务（已启用 token 鉴权）
   app.get('/api/tasks', async (req, res) => {
     const email = req.query.email;
+    const { token } = req.query;
     if (!email) return res.status(400).json({ error: '缺少 email 参数' });
+    
+    // 启用 token 验证
+    if (token !== process.env.CUSTOMER_TOKEN) {
+      return res.status(403).json({ error: '无权访问' });
+    }
+
     try {
       const { rows } = await pool.query('SELECT * FROM tasks WHERE user_email = $1', [email]);
       res.json(rows);
@@ -537,165 +572,164 @@ async function startServer() {
   // ========== 2. 特殊页面路由 ==========
 
   // 客服管理界面
-  // 客服管理界面
-app.get('/admin', (req, res) => {
-  const token = req.query.token;
-  if (token !== process.env.CUSTOMER_TOKEN) {
-    return res.status(403).send('无权访问');
-  }
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>客服管理 - 待确认任务</title>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
-            .task { background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-            .task p { margin: 5px 0; }
-            button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-            button:disabled { background: #ccc; }
-            details { margin: 10px 0; }
-            summary { font-weight: bold; cursor: pointer; padding: 8px; background: #e9ecef; border-radius: 8px; }
-            .auth-item { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
-            .auth-item button { padding: 5px 10px; font-size: 0.9rem; }
-        </style>
-    </head>
-    <body>
-        <h1>客服管理后台</h1>
-        <details>
-            <summary>待人工确认的任务</summary>
-            <div id="taskList">加载中...</div>
-        </details>
-        <details>
-            <summary>待授权邮箱</summary>
-            <div id="authList">加载中...</div>
-        </details>
-        <script>
-            const token = new URLSearchParams(location.search).get('token');
-            if (!token) {
-                document.body.innerHTML = '<h2>缺少 token 参数</h2>';
-            } else {
-                loadTasks();
-                loadAuths();
-            }
+  app.get('/admin', (req, res) => {
+    const token = req.query.token;
+    if (token !== process.env.CUSTOMER_TOKEN) {
+      return res.status(403).send('无权访问');
+    }
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>客服管理 - 待确认任务</title>
+          <meta charset="UTF-8">
+          <style>
+              body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
+              .task { background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .task p { margin: 5px 0; }
+              button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+              button:disabled { background: #ccc; }
+              details { margin: 10px 0; }
+              summary { font-weight: bold; cursor: pointer; padding: 8px; background: #e9ecef; border-radius: 8px; }
+              .auth-item { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
+              .auth-item button { padding: 5px 10px; font-size: 0.9rem; }
+          </style>
+      </head>
+      <body>
+          <h1>客服管理后台</h1>
+          <details>
+              <summary>待人工确认的任务</summary>
+              <div id="taskList">加载中...</div>
+          </details>
+          <details>
+              <summary>待授权邮箱</summary>
+              <div id="authList">加载中...</div>
+          </details>
+          <script>
+              const token = new URLSearchParams(location.search).get('token');
+              if (!token) {
+                  document.body.innerHTML = '<h2>缺少 token 参数</h2>';
+              } else {
+                  loadTasks();
+                  loadAuths();
+              }
 
-            async function loadTasks() {
-                try {
-                    const res = await fetch('/api/customer/pending-tasks?token=' + token);
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        document.getElementById('taskList').innerHTML = '加载失败: ' + errorText;
-                        return;
-                    }
-                    const tasks = await res.json();
-                    if (tasks.length === 0) {
-                        document.getElementById('taskList').innerHTML = '暂无待确认任务';
-                        return;
-                    }
-                    let html = '';
-                    tasks.forEach(task => {
-                        html += \`
-                            <div class="task" id="task-\${task.id}">
-                                <p><strong>\${escapeHtml(task.name)}</strong></p>
-                                <p>用户邮箱：\${escapeHtml(task.user_email)}</p>
-                                <p>监督人邮箱：\${escapeHtml(task.finalEmail)}</p>
-                                <p>联系电话：\${escapeHtml(task.contactPhone || '无')}</p>
-                                <p>最后打卡：\${new Date(task.lastCheckin).toLocaleString()}</p>
-                                <button onclick="sendFinal('\${task.id}')">确认发送终止通知</button>
-                            </div>
-                        \`;
-                    });
-                    document.getElementById('taskList').innerHTML = html;
-                } catch (err) {
-                    document.getElementById('taskList').innerHTML = '加载异常: ' + err.message;
-                }
-            }
+              async function loadTasks() {
+                  try {
+                      const res = await fetch('/api/customer/pending-tasks?token=' + token);
+                      if (!res.ok) {
+                          const errorText = await res.text();
+                          document.getElementById('taskList').innerHTML = '加载失败: ' + errorText;
+                          return;
+                      }
+                      const tasks = await res.json();
+                      if (tasks.length === 0) {
+                          document.getElementById('taskList').innerHTML = '暂无待确认任务';
+                          return;
+                      }
+                      let html = '';
+                      tasks.forEach(task => {
+                          html += \`
+                              <div class="task" id="task-\${task.id}">
+                                  <p><strong>\${escapeHtml(task.name)}</strong></p>
+                                  <p>用户邮箱：\${escapeHtml(task.user_email)}</p>
+                                  <p>监督人邮箱：\${escapeHtml(task.finalEmail)}</p>
+                                  <p>联系电话：\${escapeHtml(task.contactPhone || '无')}</p>
+                                  <p>最后打卡：\${new Date(task.lastCheckin).toLocaleString()}</p>
+                                  <button onclick="sendFinal('\${task.id}')">确认发送终止通知</button>
+                              </div>
+                          \`;
+                      });
+                      document.getElementById('taskList').innerHTML = html;
+                  } catch (err) {
+                      document.getElementById('taskList').innerHTML = '加载异常: ' + err.message;
+                  }
+              }
 
-            async function loadAuths() {
-                try {
-                    const res = await fetch('/api/admin/pending-auths?token=' + token);
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        document.getElementById('authList').innerHTML = '加载失败: ' + errorText;
-                        return;
-                    }
-                    const auths = await res.json();
-                    if (auths.length === 0) {
-                        document.getElementById('authList').innerHTML = '暂无待授权邮箱';
-                        return;
-                    }
-                    let html = '';
-                    auths.forEach(item => {
-                        html += \`
-                            <div class="auth-item" id="auth-\${item.email}">
-                                <div>
-                                    <strong>\${escapeHtml(item.email)}</strong><br>
-                                    授权码：\${escapeHtml(item.auth_code)}<br>
-                                    申请时间：\${new Date(item.created_at).toLocaleString()}<br>
-                                    过期时间：\${new Date(item.expires_at).toLocaleString()}
-                                </div>
-                                <button onclick="sendAuthCode('\${item.email}')">发送授权码</button>
-                            </div>
-                        \`;
-                    });
-                    document.getElementById('authList').innerHTML = html;
-                } catch (err) {
-                    document.getElementById('authList').innerHTML = '加载异常: ' + err.message;
-                }
-            }
+              async function loadAuths() {
+                  try {
+                      const res = await fetch('/api/admin/pending-auths?token=' + token);
+                      if (!res.ok) {
+                          const errorText = await res.text();
+                          document.getElementById('authList').innerHTML = '加载失败: ' + errorText;
+                          return;
+                      }
+                      const auths = await res.json();
+                      if (auths.length === 0) {
+                          document.getElementById('authList').innerHTML = '暂无待授权邮箱';
+                          return;
+                      }
+                      let html = '';
+                      auths.forEach(item => {
+                          html += \`
+                              <div class="auth-item" id="auth-\${item.email}">
+                                  <div>
+                                      <strong>\${escapeHtml(item.email)}</strong><br>
+                                      授权码：\${escapeHtml(item.auth_code)}<br>
+                                      申请时间：\${new Date(item.created_at).toLocaleString()}<br>
+                                      过期时间：\${new Date(item.expires_at).toLocaleString()}
+                                  </div>
+                                  <button onclick="sendAuthCode('\${item.email}')">发送授权码</button>
+                              </div>
+                          \`;
+                      });
+                      document.getElementById('authList').innerHTML = html;
+                  } catch (err) {
+                      document.getElementById('authList').innerHTML = '加载异常: ' + err.message;
+                  }
+              }
 
-            async function sendFinal(taskId) {
-                if (!confirm('确认已联系用户并发送终止通知？')) return;
-                try {
-                    const res = await fetch('/api/customer/send-final/' + taskId + '?token=' + token, { method: 'POST' });
-                    const result = await res.json();
-                    if (res.ok) {
-                        alert('发送成功');
-                        document.getElementById('task-' + taskId).remove();
-                    } else {
-                        alert('发送失败：' + (result.error || '未知错误'));
-                    }
-                } catch (err) {
-                    alert('请求异常：' + err.message);
-                }
-            }
+              async function sendFinal(taskId) {
+                  if (!confirm('确认已联系用户并发送终止通知？')) return;
+                  try {
+                      const res = await fetch('/api/customer/send-final/' + taskId + '?token=' + token, { method: 'POST' });
+                      const result = await res.json();
+                      if (res.ok) {
+                          alert('发送成功');
+                          document.getElementById('task-' + taskId).remove();
+                      } else {
+                          alert('发送失败：' + (result.error || '未知错误'));
+                      }
+                  } catch (err) {
+                      alert('请求异常：' + err.message);
+                  }
+              }
 
-            async function sendAuthCode(email) {
-                if (!confirm('确认发送授权码到该邮箱？')) return;
-                try {
-                    const res = await fetch('/api/admin/send-auth-code?token=' + token, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email })
-                    });
-                    const result = await res.json();
-                    if (res.ok) {
-                        alert('授权码已发送');
-                        document.getElementById('auth-' + email).remove();
-                    } else {
-                        alert('发送失败：' + (result.error || '未知错误'));
-                    }
-                } catch (err) {
-                    alert('请求异常：' + err.message);
-                }
-            }
+              async function sendAuthCode(email) {
+                  if (!confirm('确认发送授权码到该邮箱？')) return;
+                  try {
+                      const res = await fetch('/api/admin/send-auth-code?token=' + token, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email })
+                      });
+                      const result = await res.json();
+                      if (res.ok) {
+                          alert('授权码已发送');
+                          document.getElementById('auth-' + email).remove();
+                      } else {
+                          alert('发送失败：' + (result.error || '未知错误'));
+                      }
+                  } catch (err) {
+                      alert('请求异常：' + err.message);
+                  }
+              }
 
-            function escapeHtml(text) {
-                if (!text) return '';
-                return String(text).replace(/[&<>"]/g, function(m) {
-                    if (m === '&') return '&amp;';
-                    if (m === '<') return '&lt;';
-                    if (m === '>') return '&gt;';
-                    if (m === '"') return '&quot;';
-                    return m;
-                });
-            }
-        </script>
-    </body>
-    </html>
-  `);
-});
+              function escapeHtml(text) {
+                  if (!text) return '';
+                  return String(text).replace(/[&<>"]/g, function(m) {
+                      if (m === '&') return '&amp;';
+                      if (m === '<') return '&lt;';
+                      if (m === '>') return '&gt;';
+                      if (m === '"') return '&quot;';
+                      return m;
+                  });
+              }
+          </script>
+      </body>
+      </html>
+    `);
+  });
 
   // 健康检查
   app.get('/health', (req, res) => {
