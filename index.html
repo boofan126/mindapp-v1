@@ -3,146 +3,258 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>冷色调 · 前后端分离版</title>
+  <title>冷调 · 精致版</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      background: #e9f0f5;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(145deg, #dae5f0 0%, #e9f0f5 100%);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
       min-height: 100vh;
-      padding: 20px;
-    }
-    .container {
-      max-width: 500px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      border-radius: 32px;
-      box-shadow: 0 20px 35px -10px rgba(0, 40, 60, 0.15);
-      padding: 28px 24px 36px 24px;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
-    }
-    .logo {
-      background: #d4e3ed;
-      width: 52px;
-      height: 52px;
-      border-radius: 18px;
+      padding: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #2b4f6e;
-      font-size: 28px;
-      box-shadow: 0 6px 12px -5px rgba(30, 70, 100, 0.2);
     }
+
+    /* 卡片容器 */
+    .card {
+      max-width: 500px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 30px 50px -20px rgba(0, 40, 60, 0.3),
+                  inset 0 1px 4px rgba(255,255,255,0.8);
+      padding: 28px 24px 36px 24px;
+      transition: box-shadow 0.3s;
+    }
+
+    /* 头部区域 */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .logo {
+      background: linear-gradient(135deg, #c0d9e8, #a6c5da);
+      width: 56px;
+      height: 56px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1d4a66;
+      font-size: 30px;
+      box-shadow: 0 10px 15px -8px rgba(30, 70, 100, 0.3);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+
     .title {
       flex: 1;
-      font-size: 2rem;
-      font-weight: 600;
-      color: #1a3a4f;
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: #153e54;
       letter-spacing: -0.02em;
+      line-height: 1.1;
+      text-shadow: 0 2px 4px rgba(255,255,255,0.8);
     }
-    .main-image {
+
+    /* 图片容器 — 增加内发光效果 */
+    .image-wrapper {
+      position: relative;
+      margin-bottom: 28px;
+      border-radius: 28px;
+      box-shadow: 0 20px 30px -10px rgba(10, 50, 70, 0.3);
+    }
+
+    .image-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      border-radius: 24px;
-      overflow: hidden;
-      margin-bottom: 24px;
-      box-shadow: 0 15px 25px -8px rgba(10, 50, 70, 0.2);
+      height: 100%;
+      border-radius: 28px;
+      box-shadow: inset 0 1px 3px rgba(255,255,255,0.7);
+      pointer-events: none;
     }
-    .main-image img {
+
+    .image-wrapper img {
       width: 100%;
       height: auto;
       aspect-ratio: 16 / 9;
       object-fit: cover;
+      border-radius: 28px;
       display: block;
       background: #bdd3e3;
+      transition: transform 0.3s ease;
     }
+
+    .image-wrapper img:active {
+      transform: scale(0.98);
+    }
+
+    /* 描述文字区域 */
     .description {
+      margin-bottom: 36px;
+    }
+
+    .description p {
       font-size: 1.2rem;
       line-height: 1.7;
-      color: #2b4a5c;
+      color: #1e3e50;
       font-weight: 400;
-      margin-bottom: 32px;
+      margin-bottom: 1.2em;
+      padding-left: 20px;
       border-left: 3px solid #8eb3c7;
-      padding-left: 18px;
+      transition: border-color 0.2s;
     }
-    .description p {
-      margin-bottom: 1em;
-    }
+
     .description p:last-child {
       margin-bottom: 0;
     }
+
+    /* 加载骨架屏效果 */
+    .loading-skeleton .title {
+      background: linear-gradient(90deg, #d0e0ec 25%, #e0edf5 50%, #d0e0ec 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      color: transparent;
+      border-radius: 12px;
+      width: 70%;
+      height: 2.5rem;
+    }
+
+    .loading-skeleton .image-wrapper {
+      background: linear-gradient(90deg, #d0e0ec 25%, #e0edf5 50%, #d0e0ec 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      border-radius: 28px;
+      height: 200px;
+    }
+
+    .loading-skeleton .description p {
+      background: linear-gradient(90deg, #d0e0ec 25%, #e0edf5 50%, #d0e0ec 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      color: transparent;
+      border-left-color: transparent;
+      height: 1.5rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* 按钮区域 */
     .button-wrapper {
       display: flex;
       justify-content: center;
     }
+
     .pdf-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      background: #1f5068;
+      background: linear-gradient(135deg, #1f5f7a, #134257);
       color: white;
       text-decoration: none;
-      font-size: 1.5rem;
-      font-weight: 600;
-      padding: 18px 45px;
+      font-size: 0.8rem;
+      font-weight: 400;
+      padding: 10px 30px;
       border-radius: 50px;
-      box-shadow: 0 12px 20px -8px #1f506880;
-      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 15px 25px -8px #1f5068cc, 0 3px 8px rgba(255,255,255,0.3) inset;
+      transition: all 0.2s;
       min-width: 240px;
+      border: 1px solid rgba(255,255,255,0.2);
     }
-    .pdf-btn i { font-size: 1.8rem; }
+
+    .pdf-btn i {
+      font-size: 1.8rem;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+    }
+
     .pdf-btn:active {
-      background: #143b4f;
-      transform: scale(0.97);
+      transform: scale(0.96);
+      background: linear-gradient(135deg, #134257, #0d3344);
+      box-shadow: 0 5px 15px -5px #0f2e3d;
     }
+
+    /* 小屏幕优化 */
     @media (max-width: 450px) {
-      .container { padding: 20px 18px 30px; }
-      .title { font-size: 1.8rem; }
-      .logo { width: 48px; height: 48px; }
-      .description { font-size: 1.1rem; }
+      body { padding: 12px; }
+      .card { padding: 22px 18px 30px; }
+      .title { font-size: 1.9rem; }
+      .logo { width: 50px; height: 50px; font-size: 26px; }
+      .description p { font-size: 1.1rem; }
       .pdf-btn { font-size: 1.3rem; padding: 16px 30px; min-width: 200px; }
+    }
+
+    /* 超小屏 */
+    @media (max-width: 340px) {
+      .pdf-btn { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="card" id="card">
     <div class="header">
-      <div class="logo"><i class="fas fa-leaf"></i></div>
+      <div class="logo"><img src="images/logo.png" alt="logo" style="width: 60px; height: 60px; border-radius: 12px;"></i></div>
       <div class="title" id="page-title">加载中...</div>
     </div>
 
-    <div class="main-image">
-      <img src="images/my-photo.jpg" alt="介绍图片" id="page-image">
+    <div class="image-wrapper" id="image-wrapper">
+      <img src="" alt="介绍图片" id="page-image" style="opacity: 0;">
     </div>
 
-    <div class="description" id="page-description">
-      <!-- 动态填充段落 -->
-    </div>
+    <div class="description" id="page-description"></div>
 
     <div class="button-wrapper">
       <a href="#" id="pdf-link" class="pdf-btn" target="_blank">
-        <i class="fas fa-file-pdf"></i> 查看PDF说明
+        <i class="fas fa-file-pdf"></i> 查看具体使用说明pdf
       </a>
     </div>
   </div>
 
   <script>
-    // 页面加载后从后端获取数据
+    // 显示加载骨架屏
+    document.getElementById('card').classList.add('loading-skeleton');
+
     fetch('/api/content')
       .then(response => response.json())
       .then(data => {
+        // 移除骨架屏
+        document.getElementById('card').classList.remove('loading-skeleton');
+
         // 设置标题
         document.getElementById('page-title').textContent = data.title;
 
-        // 设置介绍文字（支持多段）
+        // 设置图片 (如果 API 返回 imageUrl，否则使用默认)
+        const img = document.getElementById('page-image');
+        if (data.imageUrl) {
+          img.src = data.imageUrl;
+        } else {
+          img.src = '/images/my-photo.jpg'; // 默认图片路径
+        }
+        img.style.opacity = '1';
+
+        // 设置描述段落
         const descContainer = document.getElementById('page-description');
-        descContainer.innerHTML = ''; // 清空加载占位
+        descContainer.innerHTML = '';
         data.description.forEach(paragraph => {
           const p = document.createElement('p');
           p.textContent = paragraph;
@@ -150,12 +262,14 @@
         });
 
         // 设置PDF链接
-        const pdfLink = document.getElementById('pdf-link');
-        pdfLink.href = data.pdfUrl;
+        document.getElementById('pdf-link').href = data.pdfUrl;
       })
       .catch(error => {
-        console.error('加载内容失败:', error);
+        console.error('加载失败:', error);
+        document.getElementById('card').classList.remove('loading-skeleton');
         document.getElementById('page-title').textContent = '内容加载失败';
+        document.getElementById('page-image').style.opacity = '1';
+        document.getElementById('page-image').src = '/images/fallback.jpg'; // 可准备一个占位图
       });
   </script>
 </body>
