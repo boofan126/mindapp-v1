@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>冷色调 · 前后端分离版</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #e9f0f5;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 32px;
+      box-shadow: 0 20px 35px -10px rgba(0, 40, 60, 0.15);
+      padding: 28px 24px 36px 24px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .logo {
+      background: #d4e3ed;
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #2b4f6e;
+      font-size: 28px;
+      box-shadow: 0 6px 12px -5px rgba(30, 70, 100, 0.2);
+    }
+    .title {
+      flex: 1;
+      font-size: 2rem;
+      font-weight: 600;
+      color: #1a3a4f;
+      letter-spacing: -0.02em;
+    }
+    .main-image {
+      width: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: 0 15px 25px -8px rgba(10, 50, 70, 0.2);
+    }
+    .main-image img {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      display: block;
+      background: #bdd3e3;
+    }
+    .description {
+      font-size: 1.2rem;
+      line-height: 1.7;
+      color: #2b4a5c;
+      font-weight: 400;
+      margin-bottom: 32px;
+      border-left: 3px solid #8eb3c7;
+      padding-left: 18px;
+    }
+    .description p {
+      margin-bottom: 1em;
+    }
+    .description p:last-child {
+      margin-bottom: 0;
+    }
+    .button-wrapper {
+      display: flex;
+      justify-content: center;
+    }
+    .pdf-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #1f5068;
+      color: white;
+      text-decoration: none;
+      font-size: 1.5rem;
+      font-weight: 600;
+      padding: 18px 45px;
+      border-radius: 50px;
+      box-shadow: 0 12px 20px -8px #1f506880;
+      transition: background 0.2s, transform 0.1s;
+      min-width: 240px;
+    }
+    .pdf-btn i { font-size: 1.8rem; }
+    .pdf-btn:active {
+      background: #143b4f;
+      transform: scale(0.97);
+    }
+    @media (max-width: 450px) {
+      .container { padding: 20px 18px 30px; }
+      .title { font-size: 1.8rem; }
+      .logo { width: 48px; height: 48px; }
+      .description { font-size: 1.1rem; }
+      .pdf-btn { font-size: 1.3rem; padding: 16px 30px; min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo"><i class="fas fa-leaf"></i></div>
+      <div class="title" id="page-title">加载中...</div>
+    </div>
+
+    <div class="main-image">
+      <img src="images/my-photo.jpg" alt="介绍图片" id="page-image">
+    </div>
+
+    <div class="description" id="page-description">
+      <!-- 动态填充段落 -->
+    </div>
+
+    <div class="button-wrapper">
+      <a href="#" id="pdf-link" class="pdf-btn" target="_blank">
+        <i class="fas fa-file-pdf"></i> 查看PDF说明
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // 页面加载后从后端获取数据
+    fetch('/api/content')
+      .then(response => response.json())
+      .then(data => {
+        // 设置标题
+        document.getElementById('page-title').textContent = data.title;
+
+        // 设置介绍文字（支持多段）
+        const descContainer = document.getElementById('page-description');
+        descContainer.innerHTML = ''; // 清空加载占位
+        data.description.forEach(paragraph => {
+          const p = document.createElement('p');
+          p.textContent = paragraph;
+          descContainer.appendChild(p);
+        });
+
+        // 设置PDF链接
+        const pdfLink = document.getElementById('pdf-link');
+        pdfLink.href = data.pdfUrl;
+      })
+      .catch(error => {
+        console.error('加载内容失败:', error);
+        document.getElementById('page-title').textContent = '内容加载失败';
+      });
+  </script>
+</body>
+</html>
