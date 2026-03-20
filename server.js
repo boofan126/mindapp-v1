@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const app = express();
+const imagePath = "/images/document.png";   //改png
 const PORT = process.env.PORT || 3000;
 
 // 托管静态文件
@@ -19,7 +20,7 @@ app.get('/api/content', (req, res) => {
       "有时候，我们有些话还不能说，总觉得时机未到，有时候，有些话还没到该说的时候，此时，有一个工具，万一在发生意外之后，能将你需要给他人的消息发出，这个工具你会使用吗？",
       "心灵保险的灵感就是来自于这个，让人们知道，虽然有意外，但也要做到无遗憾！"
     ],
-    pdfUrl: '/files/document.png'      // png 链接
+    pdfUrl: `/viewer.html?img=${encodeURIComponent(imagePath)}`  //改png
   });
 });
 
