@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>图片查看</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .image-container {
+      width: 100%;
+      max-width: 100%;
+      text-align: center;
+    }
+    .image-container img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="image-container">
+    <img id="display-image" src="" alt="图片">
+  </div>
+  <script>
+    // 获取 URL 参数中的图片地址
+    const urlParams = new URLSearchParams(window.location.search);
+    const imgSrc = urlParams.get('img');
+    if (imgSrc) {
+      document.getElementById('display-image').src = decodeURIComponent(imgSrc);
+    } else {
+      // 如果没有传参，可以显示默认图片
+      document.getElementById('display-image').src = '/images/fallback.png';
+    }
+  </script>
+</body>
+</html>
