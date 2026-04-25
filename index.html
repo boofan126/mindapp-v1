@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
@@ -22,7 +22,6 @@
       justify-content: center;
     }
 
-    /* 卡片容器 */
     .card {
       max-width: 500px;
       width: 100%;
@@ -37,7 +36,6 @@
       transition: box-shadow 0.3s;
     }
 
-    /* 头部区域 */
     .header {
       display: flex;
       align-items: flex-start;
@@ -82,7 +80,6 @@
       line-height: 1.3;
     }
 
-    /* 语言切换按钮容器（垂直排列） */
     .lang-switch {
       display: flex;
       flex-direction: column;
@@ -115,7 +112,6 @@
       transform: scale(0.95);
     }
 
-    /* 按钮组通用样式 */
     .button-group {
       display: flex;
       flex-wrap: wrap;
@@ -144,18 +140,22 @@
       transform: scale(0.96);
     }
 
-    /* 四种冷色调背景 */
     .info-btn:nth-child(1) { background: #2c6e8f; }
     .info-btn:nth-child(2) { background: #2f7a7c; }
     .info-btn:nth-child(3) { background: #3c7a5e; }
     .info-btn:nth-child(4) { background: #4f6d8f; }
 
-    /* 图片容器 */
     .image-wrapper {
       position: relative;
       margin-bottom: 28px;
       border-radius: 28px;
       box-shadow: 0 20px 30px -10px rgba(10, 50, 70, 0.3);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .image-wrapper:active {
+      transform: scale(0.98);
     }
 
     .image-wrapper::after {
@@ -178,14 +178,9 @@
       border-radius: 28px;
       display: block;
       background: #bdd3e3;
-      transition: transform 0.3s ease;
+      pointer-events: none;
     }
 
-    .image-wrapper img:active {
-      transform: scale(0.98);
-    }
-
-    /* 描述文字区域 */
     .description {
       margin-bottom: 36px;
     }
@@ -198,14 +193,8 @@
       margin-bottom: 1.2em;
       padding-left: 20px;
       border-left: 3px solid #8eb3c7;
-      transition: border-color 0.2s;
     }
 
-    .description p:last-child {
-      margin-bottom: 0;
-    }
-
-    /* 加载骨架屏效果 */
     .loading-skeleton .main-title,
     .loading-skeleton .sub-title {
       background: linear-gradient(90deg, #d0e0ec 25%, #e0edf5 50%, #d0e0ec 75%);
@@ -246,7 +235,6 @@
       100% { background-position: -200% 0; }
     }
 
-    /* 按钮区域（原PDF按钮） */
     .button-wrapper {
       display: flex;
       justify-content: center;
@@ -281,7 +269,6 @@
       box-shadow: 0 5px 15px -5px #0f2e3d;
     }
 
-    /* 小屏幕优化 */
     @media (max-width: 450px) {
       body { padding: 12px; }
       .card { padding: 22px 18px 30px; }
@@ -298,168 +285,155 @@
   </style>
 </head>
 <body>
-  <div class="card" id="card">
-    <div class="header">
-      <div class="logo"><img src="images/logo.png" alt="logo" style="width: 60px; height: 60px; border-radius: 12px;"></div>
-      <div class="title-area" id="title-area">
-        <div class="main-title" id="main-title">加载中...</div>
-        <div class="sub-title" id="sub-title"></div>
-      </div>
-      <!-- 语言切换按钮（垂直排列） -->
-      <div class="lang-switch" id="lang-switch">
-        <div class="lang-btn active" data-lang="zh">中文</div>
-        <div class="lang-btn" data-lang="en">English</div>
-      </div>
+<div class="card" id="card">
+  <div class="header">
+    <div class="logo"><img src="images/logo.png" alt="logo" style="width: 60px; height: 60px; border-radius: 12px;"></div>
+    <div class="title-area" id="title-area">
+      <div class="main-title" id="main-title">加载中...</div>
+      <div class="sub-title" id="sub-title"></div>
     </div>
-
-    <!-- 第一组按钮：标题下方 -->
-    <div class="button-group" id="button-group-top">
-      <a href="/viewer.html?img=/images/info1.png" class="info-btn" target="_blank">项目介绍</a>
-      <a href="/viewer.html?img=/images/info2.png" class="info-btn" target="_blank">项目愿景</a>
-      <a href="/viewer.html?img=/images/info3.png" class="info-btn" target="_blank">全球招募</a>
-      <a href="/viewer.html?img=/images/info4.png" class="info-btn" target="_blank">加入我们</a>
-    </div>
-
-    <div class="image-wrapper" id="image-wrapper">
-      <img src="" alt="介绍图片" id="page-image" style="opacity: 0;">
-    </div>
-
-    <div class="description" id="page-description"></div>
-
-    <!-- 原有PDF按钮 -->
-    <div class="button-wrapper">
-      <a href="#" id="pdf-link" class="pdf-btn" target="_blank">
-        <i class="fas fa-file-pdf"></i> <span id="pdf-btn-text">查看具体使用说明</span>
-      </a>
-    </div>
-
-    <!-- 第二组按钮：页面最下方 -->
-    <div class="button-group" id="button-group-bottom">
-      <a href="/viewer.html?img=/images/info1.png" class="info-btn" target="_blank">项目介绍</a>
-      <a href="/viewer.html?img=/images/info2.png" class="info-btn" target="_blank">项目愿景</a>
-      <a href="/viewer.html?img=/images/info3.png" class="info-btn" target="_blank">全球招募</a>
-      <a href="/viewer.html?img=/images/info4.png" class="info-btn" target="_blank">加入我们</a>
+    <div class="lang-switch" id="lang-switch">
+      <div class="lang-btn active" data-lang="zh">中文</div>
+      <div class="lang-btn" data-lang="en">English</div>
     </div>
   </div>
 
-  <script>
-    // ------------------- 双语内容定义 -------------------
-    const content = {
-      zh: {
-        mainTitle: "心灵保险来源于.....",
-        subTitle: "有意外，无遗憾！",
-        description: [
-          "🌱 前几天刷到一条消息，一个和我同龄的博主，前一天还在分享日常，隔天就被家人告知，突发意外永远离开了。评论区里满是唏嘘，有人说“前一秒还在计划未来，后一秒就只剩回忆”，有人感慨“我们总以为来日方长，却忘了世事无常”。",
-          "人生最残忍的真相是：没有那么多“下次”，也没有那么多“以后”。一场意外、一次生病、甚至一个转身，都可能成为永别。",
-          "错过的陪伴，再也补不回来；没说出口的道歉，再也没有机会说出口；想做却迟迟未做的事，最终只能变成心底永远的遗憾。",
-          "人生无常，我们无法预测明天和意外哪个先来，但我们可以选择，让当下的每一刻，都尽量不留遗憾。很多时候，一句迟来的“我爱你”，一句未说出口的“对不起”，就成了天人永隔的遗憾。",
-          "有时候，我们有些话还不能说，总觉得时机未到，有时候，有些话还没到该说的时候，此时，有一个工具，万一在发生意外之后，能将你需要给他人的消息发出，这个工具你会使用吗？",
-          "心灵保险的灵感就是来自于这个，让人们知道，虽然有意外，但也要做到无遗憾！"
-        ],
-        infoButtons: ["项目介绍", "项目愿景", "全球招募", "加入我们"],
-        pdfButton: "查看具体使用说明"
-      },
-      en: {
-        mainTitle: "Mind Insurance Comes From...",
-        subTitle: "There arc accidents, but no regrets!",
-        description: [
-          "🌱 A few days ago, I came across a post about a blogger my age. One day they were sharing their daily life, the next their family announced they had left us due to a sudden accident. The comments were filled with sighs: \"One moment planning the future, the next only memories remain,\" and \"We always think there's plenty of time, but we forget that life is unpredictable.\"",
-          "The cruelest truth of life is: there aren't that many \"next times\" or \"later days\". An accident, an illness, even a turn of the back can become a final goodbye.",
-          "Missed moments of companionship can never be reclaimed. Apologies left unsaid may never be spoken. Things we keep putting off become eternal regrets buried in the heart.",
-          "We cannot predict which comes first, tomorrow or the unexpected. But we can choose to make every moment as regret‑free as possible. Too often, a belated \"I love you\" or an unspoken \"I'm sorry\" becomes an irreparable loss.",
-          "Sometimes there are words we hold back, feeling the timing isn't right. Sometimes there are things we haven't yet said when the moment is ripe. Now, there is a tool that, in the event of an accident, can send the messages you need to convey to your loved ones. Would you use it?",
-          "The inspiration for Heart Insurance came from this—to remind people that even though accidents happen, we can still live without regrets."
-        ],
-        infoButtons: ["Project Intro", "Our Vision", "Global Call", "Join Us"],
-        pdfButton: "View Instructions"
-      }
-    };
+  <div class="button-group" id="button-group-top">
+    <a href="/viewer.html?img=/images/info1.png" class="info-btn" target="_blank">项目介绍</a>
+    <a href="/viewer.html?img=/images/info2.png" class="info-btn" target="_blank">项目愿景</a>
+    <a href="/viewer.html?img=/images/info3.png" class="info-btn" target="_blank">全球招募</a>
+    <a href="/viewer.html?img=/images/info4.png" class="info-btn" target="_blank">加入我们</a>
+  </div>
 
-    let currentLang = 'zh';   // 当前语言
-    let apiData = { imageUrl: '', pdfUrl: '' };  // 存储从API获取的图片和PDF链接
+  <!-- 大图区域：点击跳转指定网址 -->
+  <div class="image-wrapper" id="image-wrapper">
+    <img src="" alt="介绍图片" id="page-image" style="opacity: 0;">
+  </div>
 
-    // 更新页面所有文字
-    function updateLanguage(lang) {
-      const t = content[lang];
-      // 标题区域
-      document.getElementById('main-title').textContent = t.mainTitle;
-      document.getElementById('sub-title').textContent = t.subTitle;
-      // 描述段落
-      const descContainer = document.getElementById('page-description');
-      descContainer.innerHTML = '';
-      t.description.forEach(paragraph => {
-        const p = document.createElement('p');
-        p.textContent = paragraph;
-        descContainer.appendChild(p);
-      });
-      // 四个信息按钮（两组）
-      const btnsTop = document.querySelectorAll('#button-group-top .info-btn');
-      const btnsBottom = document.querySelectorAll('#button-group-bottom .info-btn');
-      for (let i = 0; i < t.infoButtons.length; i++) {
-        if (btnsTop[i]) btnsTop[i].textContent = t.infoButtons[i];
-        if (btnsBottom[i]) btnsBottom[i].textContent = t.infoButtons[i];
-      }
-      // PDF按钮文字
-      document.getElementById('pdf-btn-text').textContent = t.pdfButton;
+  <div class="description" id="page-description"></div>
 
-      // 高亮当前语言按钮
-      document.querySelectorAll('.lang-btn').forEach(btn => {
-        if (btn.dataset.lang === lang) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
+  <div class="button-wrapper">
+    <a href="#" id="pdf-link" class="pdf-btn" target="_blank">
+      <i class="fas fa-file-pdf"></i> <span id="pdf-btn-text">查看具体使用说明</span>
+    </a>
+  </div>
+
+  <div class="button-group" id="button-group-bottom">
+    <a href="/viewer.html?img=/images/info1.png" class="info-btn" target="_blank">项目介绍</a>
+    <a href="/viewer.html?img=/images/info2.png" class="info-btn" target="_blank">项目愿景</a>
+    <a href="/viewer.html?img=/images/info3.png" class="info-btn" target="_blank">全球招募</a>
+    <a href="/viewer.html?img=/images/info4.png" class="info-btn" target="_blank">加入我们</a>
+  </div>
+</div>
+
+<script>
+  const content = {
+    zh: {
+      mainTitle: "心灵保险来源于.....",
+      subTitle: "有意外，无遗憾！",
+      description: [
+        "🌱 前几天刷到一条消息，一个和我同龄的博主，前一天还在分享日常，隔天就被家人告知，突发意外永远离开了。评论区里满是唏嘘，有人说“前一秒还在计划未来，后一秒就只剩回忆”，有人感慨“我们总以为来日方长，却忘了世事无常”。",
+        "人生最残忍的真相是：没有那么多“下次”，也没有那么多“以后”。一场意外、一次生病、甚至一个转身，都可能成为永别。",
+        "错过的陪伴，再也补不回来；没说出口的道歉，再也没有机会说出口；想做却迟迟未做的事，最终只能变成心底永远的遗憾。",
+        "人生无常，我们无法预测明天和意外哪个先来，但我们可以选择，让当下的每一刻，都尽量不留遗憾。很多时候，一句迟来的“我爱你”，一句未说出口的“对不起”，就成了天人永隔的遗憾。",
+        "有时候，我们有些话还不能说，总觉得时机未到，有时候，有些话还没到该说的时候，此时，有一个工具，万一在发生意外之后，能将你需要给他人的消息发出，这个工具你会使用吗？",
+        "心灵保险的灵感就是来自于这个，让人们知道，虽然有意外，但也要做到无遗憾！"
+      ],
+      infoButtons: ["项目介绍", "项目愿景", "全球招募", "加入我们"],
+      pdfButton: "查看具体使用说明"
+    },
+    en: {
+      mainTitle: "Mind Insurance Comes From...",
+      subTitle: "There are accidents, but no regrets!",
+      description: [
+        "🌱 A few days ago, I came across a post about a blogger my age. One day they were sharing their daily life, the next their family announced they had left us due to a sudden accident. The comments were filled with sighs: \"One moment planning the future, the next only memories remain,\" and \"We always think there's plenty of time, but we forget that life is unpredictable.\"",
+        "The cruelest truth of life is: there aren't that many \"next times\" or \"later days\". An accident, an illness, even a turn of the back can become a final goodbye.",
+        "Missed moments of companionship can never be reclaimed. Apologies left unsaid may never be spoken. Things we keep putting off become eternal regrets buried in the heart.",
+        "We cannot predict which comes first, tomorrow or the unexpected. But we can choose to make every moment as regret‑free as possible. Too often, a belated \"I love you\" or an unspoken \"I'm sorry\" becomes an irreparable loss.",
+        "Sometimes there are words we hold back, feeling the timing isn't right. Sometimes there are things we haven't yet said when the moment is ripe. Now, there is a tool that, in the event of an accident, can send the messages you need to convey to your loved ones. Would you use it?",
+        "The inspiration for Heart Insurance came from this—to remind people that even though accidents happen, we can still live without regrets."
+      ],
+      infoButtons: ["Project Intro", "Our Vision", "Global Call", "Join Us"],
+      pdfButton: "View Instructions"
     }
+  };
 
-    // 获取API数据（图片、PDF链接）
-    function fetchApiData() {
-      return fetch('/api/content')
-        .then(response => response.json())
-        .then(data => {
-          apiData.imageUrl = data.imageUrl || '/images/my-photo.png';
-          apiData.pdfUrl = data.pdfUrl || '#';
-          // 设置图片
-          const img = document.getElementById('page-image');
-          img.src = apiData.imageUrl;
-          img.style.opacity = '1';
-          // 设置PDF链接
-          document.getElementById('pdf-link').href = apiData.pdfUrl;
-        })
-        .catch(error => {
-          console.error('API加载失败:', error);
-          apiData.imageUrl = '/images/my-photo.png';
-          apiData.pdfUrl = '#';
-          const img = document.getElementById('page-image');
-          img.src = apiData.imageUrl;
-          img.style.opacity = '1';
-        });
-    }
+  let currentLang = 'zh';
+  let apiData = { imageUrl: '', pdfUrl: '' };
 
-    // 初始化页面
-    async function init() {
-      // 显示骨架屏
-      document.getElementById('card').classList.add('loading-skeleton');
-      await fetchApiData();
-      // 移除骨架屏
-      document.getElementById('card').classList.remove('loading-skeleton');
-      // 设置默认语言为中文并渲染
-      currentLang = 'zh';
-      updateLanguage(currentLang);
-    }
-
-    // 监听语言切换按钮
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const lang = btn.dataset.lang;
-        if (lang === currentLang) return;
-        currentLang = lang;
-        updateLanguage(currentLang);
-      });
+  function updateLanguage(lang) {
+    const t = content[lang];
+    document.getElementById('main-title').textContent = t.mainTitle;
+    document.getElementById('sub-title').textContent = t.subTitle;
+    const descContainer = document.getElementById('page-description');
+    descContainer.innerHTML = '';
+    t.description.forEach(paragraph => {
+      const p = document.createElement('p');
+      p.textContent = paragraph;
+      descContainer.appendChild(p);
     });
+    const btnsTop = document.querySelectorAll('#button-group-top .info-btn');
+    const btnsBottom = document.querySelectorAll('#button-group-bottom .info-btn');
+    for (let i = 0; i < t.infoButtons.length; i++) {
+      if (btnsTop[i]) btnsTop[i].textContent = t.infoButtons[i];
+      if (btnsBottom[i]) btnsBottom[i].textContent = t.infoButtons[i];
+    }
+    document.getElementById('pdf-btn-text').textContent = t.pdfButton;
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      if (btn.dataset.lang === lang) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+  }
 
-    // 启动页面
-    init();
-  </script>
+  function fetchApiData() {
+    return fetch('/api/content')
+      .then(response => response.json())
+      .then(data => {
+        apiData.imageUrl = data.imageUrl || '/images/my-photo.png';
+        apiData.pdfUrl = data.pdfUrl || '#';
+        const img = document.getElementById('page-image');
+        img.src = apiData.imageUrl;
+        img.style.opacity = '1';
+        document.getElementById('pdf-link').href = apiData.pdfUrl;
+      })
+      .catch(error => {
+        console.error('API加载失败:', error);
+        apiData.imageUrl = '/images/my-photo.png';
+        apiData.pdfUrl = '#';
+        const img = document.getElementById('page-image');
+        img.src = apiData.imageUrl;
+        img.style.opacity = '1';
+      });
+  }
+
+  // 大图点击跳转（修改此处 TARGET_URL 为实际链接）
+  function setupImageClick() {
+    const imageWrapper = document.getElementById('image-wrapper');
+    const TARGET_URL = 'https://指定域名.com';  // ★ 请替换为实际网址
+    imageWrapper.addEventListener('click', (e) => {
+      window.open(TARGET_URL, '_blank');
+    });
+  }
+
+  async function init() {
+    document.getElementById('card').classList.add('loading-skeleton');
+    await fetchApiData();
+    document.getElementById('card').classList.remove('loading-skeleton');
+    currentLang = 'zh';
+    updateLanguage(currentLang);
+    setupImageClick();
+  }
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.dataset.lang;
+      if (lang === currentLang) return;
+      currentLang = lang;
+      updateLanguage(currentLang);
+    });
+  });
+
+  init();
+</script>
 </body>
 </html>
