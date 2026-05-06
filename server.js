@@ -4,7 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
+// const nodemailer = require('nodemailer');  用了resend后不用了
 const dns = require('dns');
 const { promisify } = require('util');
 const path = require('path');
@@ -20,6 +20,9 @@ const AlipaySdk = require('alipay-sdk').default;
 const AlipayFormData = require('alipay-sdk/lib/form').default;
 const bcrypt = require('bcryptjs');
 const validator = require('validator');
+// 引用resend
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const resolve4 = promisify(dns.resolve4);
 const app = express();
@@ -236,52 +239,54 @@ function requireSuperAdmin(req, res, next) {
 }
 
 // ======================== 邮件服务 ========================
-let transporter = null;
-async function sendMailWithRetry({ to, subject, html, text }, retries = 3) {
-  if (!transporter) return false;
-  for (let i = 0; i < retries; i++) {
+// let transporter = null;  ==resend不用
+// 发送验证码邮件的核心逻辑
+async function sendVerificationCode(email, code) {
     try {
-      await transporter.sendMail({
-        from: `"心灵保险" <${process.env.SMTP_USER}>`,
-        to,
-        subject,
-        ...(html ? { html } : { text })
-      });
-      console.log(`📧 邮件发送成功: ${to}`);
-      return true;
-    } catch (error) {
-      console.error(`📧 邮件发送失败 (尝试 ${i+1}/${retries}):`, error.message);
-      if (i === retries - 1) return false;
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        const { data, error } = await resend.emails.send({
+            from: '<service@mindapp.online>', // 比如 noreply@mail.yourdomain.com
+            to: [email],
+            subject: '【Mind Insurance】Your Verification Code',
+            html: `<p>Your verification code is: <strong>${code}</strong></p><p>This code will expire in 10 minutes.</p>`
+        });
+        if (error) {
+            console.error('Resend 发送失败:', error);
+            return false;
+        }
+        console.log('邮件发送成功:', data);
+        return true;
+    } catch (err) {
+        console.error('邮件发送异常:', err);
+        return false;
     }
-  }
-  return false;
 }
-async function initSMTP() {
-  try {
-    const smtpHost = process.env.SMTP_HOST || 'smtp.qq.com';
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
-    let addresses;
-    try { addresses = await resolve4(smtpHost); } catch(e) {}
-    const smtpIp = addresses?.[0] || smtpHost;
-    transporter = nodemailer.createTransport({
-      host: smtpIp,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-    });
-    await transporter.verify();
-    console.log(`✅ SMTP 服务器就绪`);
-  } catch (err) {
-    console.error('❌ SMTP 初始化失败，邮件功能不可用', err.message);
-  }
-}
-initSMTP();
+
+// 应用resend后不用，备注掉
+// async function initSMTP() {
+//  try {
+//    const smtpHost = process.env.SMTP_HOST || 'smtp.qq.com';
+//    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
+//    let addresses;
+//    try { addresses = await resolve4(smtpHost); } catch(e) {}
+//    const smtpIp = addresses?.[0] || smtpHost;
+//    transporter = nodemailer.createTransport({
+//      host: smtpIp,
+//      port: smtpPort,
+//      secure: smtpPort === 465,
+//      auth: {
+//        user: process.env.SMTP_USER,
+//        pass: process.env.SMTP_PASS
+//      },
+//      tls: { rejectUnauthorized: false },
+//      connectionTimeout: 15000,
+//    });
+//    await transporter.verify();
+//    console.log(`✅ SMTP 服务器就绪`);
+//  } catch (err) {
+//    console.error('❌ SMTP 初始化失败，邮件功能不可用', err.message);
+//  }
+// }
+// initSMTP();
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -486,7 +491,7 @@ async function handlePaymentSuccess(orderNo, transactionId, paidAtUnix, channel)
           [rewardAmount, referrerEmail]
         );
         const rewardYuan = (rewardAmount / 100).toFixed(2);
-        await sendMailWithRetry({
+        await sendVerificationCode({
           to: referrerEmail,
           subject: '返利通知',
           text: `您推荐的用户 ${user_email} 购买了 ${plan_type} 套餐，您将获得 ${rewardYuan} 元返利。`
@@ -500,7 +505,7 @@ async function handlePaymentSuccess(orderNo, transactionId, paidAtUnix, channel)
     const codeExpires = paidAtUnix + 600;
     await client.query(`INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)`, [user_email, loginCode, codeExpires, paidAtUnix]);
     const amountYuan = (amount / 100).toFixed(2);
-    await sendMailWithRetry({
+    await sendVerificationCode({
       to: user_email,
       subject: '支付成功，验证码',
       text: `您已成功支付${amountYuan}元，购买套餐 ${plan_type}。验证码：${loginCode}，有效期10分钟。`
@@ -723,7 +728,7 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
       'INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)',
       [email, code, expires, now]
     );
-    const sent = await sendMailWithRetry({
+    const sent = await sendVerificationCode({
       to: email,
       subject: '登录验证码',
       text: `您的验证码是：${code}，有效期10分钟。`
@@ -774,7 +779,7 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     `INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)`,
     [email, loginCode, codeExpires, now]
   );
-  const sent = await sendMailWithRetry({
+  const sent = await sendVerificationCode({
     to: email,
     subject: '登录验证码',
     text: `您的验证码是：${loginCode}，有效期10分钟。`
@@ -1291,7 +1296,7 @@ app.post('/api/customer/send-final/:taskId', verifyAdminToken, async (req, res) 
     }
     const baseText = task.finalMessage || '您已连续多日未打卡，任务已终止。';
     const mailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-    const success = await sendMailWithRetry({
+    const success = await sendVerificationCode({
       to: task.finalEmail,
       subject: '【心灵保险】任务终止通知',
       text: mailText
@@ -1423,7 +1428,7 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
             [rewardAmount, referrerEmail]
           );
           const rewardYuan = (rewardAmount / 100).toFixed(2);
-          await sendMailWithRetry({
+          await sendVerificationCode({
             to: referrerEmail,
             subject: '【心灵保险】您推荐的用户已付款，返利待发放',
             text: `您推荐的用户 ${email} 购买了 ${plan} 套餐，您将获得 ${rewardYuan} 元返利。请等待管理员线下转账。`
@@ -1455,7 +1460,7 @@ app.post('/api/admin/send-auth-code', verifyAdminToken, async (req, res) => {
     return res.status(404).json({ error: '无有效的待授权记录' });
   }
   const authCode = result.rows[0].auth_code;
-  const success = await sendMailWithRetry({
+  const success = await sendVerificationCode({
     to: email,
     subject: '【心灵保险】您的邮箱授权码',
     text: `您的邮箱授权码是：${authCode}，有效期24小时。`
@@ -1588,7 +1593,7 @@ async function checkTask(task) {
   const overdueDays = daysSince - cycleDays;
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
-      const success = await sendMailWithRetry({
+      const success = await sendVerificationCode({
         to: task.warningEmail,
         subject: '【心灵保险】打卡警告',
         text: task.warningMessage || `您已连续 ${overdueDays} 天未打卡，请及时打卡。`
@@ -1606,7 +1611,7 @@ async function checkTask(task) {
         const contactPhone = task.contactPhone || '未提供';
         const confirmLink = `${process.env.BASE_URL}/admin.html?token=${process.env.CUSTOMER_TOKEN || ''}`;
         const mailText = `任务 "${task.name}" 已到达终止条件，需要人工确认。\n- 用户邮箱：${task.user_email}\n- 监督人邮箱：${task.finalEmail}\n- 联系电话：${contactPhone}\n- 最后打卡：${new Date(task.lastCheckin * 1000).toLocaleString()}\n请登录客服界面处理：${confirmLink}`;
-        const success = await sendMailWithRetry({
+        const success = await sendVerificationCode({
           to: customerEmail,
           subject: '【心灵保险】客服人工确认提醒',
           text: mailText
@@ -1619,7 +1624,7 @@ async function checkTask(task) {
       if (!task.finalSent) {
         const baseText = task.finalMessage || `您已连续 ${overdueDays} 天未打卡，任务已终止。`;
         const finalMailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-        const success = await sendMailWithRetry({
+        const success = await sendVerificationCode({
           to: task.finalEmail,
           subject: '【心灵保险】任务终止通知',
           text: finalMailText
