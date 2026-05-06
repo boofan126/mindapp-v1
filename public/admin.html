@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>心灵保险管理后台</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
+        .login-container { max-width: 400px; margin: 100px auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button.small { padding: 4px 8px; font-size: 0.8rem; }
+        button.danger { background: #dc3545; }
+        button.success { background: #28a745; }
+        .auth-item { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .status-badge { padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-disabled { background: #f8d7da; color: #a11f2c; }
+        .expired { background: #f8d7da; color: #a11f2c; font-weight: bold; }
+        .expiring-soon { background: #fff3cd; color: #856404; }
+        details { margin-top: 15px; }
+        summary { font-weight: bold; cursor: pointer; background: #e9ecef; padding: 8px; border-radius: 8px; }
+        .header-buttons { margin-bottom: 10px; }
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .user-info { display: flex; gap: 20px; align-items: center; }
+        .admin-section { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 20px; }
+        .notice-form { background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .notice-form input, .notice-form textarea { width: 100%; margin-bottom: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .notice-item { background: white; border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .notice-content { flex: 1; }
+        .notice-title { font-weight: bold; }
+        .notice-meta { font-size: 0.7rem; color: #666; margin-top: 4px; }
+        .del-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
+        .plan-select { padding: 4px; border-radius: 4px; margin-left: 8px; }
+        .commission-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .commission-table th, .commission-table td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+        .commission-table th { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+<div id="loginView" style="display: block;">
+    <div class="login-container">
+        <h2>后台管理登录</h2>
+        <input type="text" id="adminUsername" placeholder="用户名" style="width:100%; margin-bottom:10px; padding:8px;">
+        <input type="password" id="adminPassword" placeholder="密码" style="width:100%; margin-bottom:10px; padding:8px;">
+        <button id="adminLoginBtn">登录</button>
+        <div id="loginError" style="color:red; margin-top:10px;"></div>
+    </div>
+</div>
+
+<div id="adminView" style="display: none;">
+    <div class="nav-bar">
+        <h1>心灵保险管理后台</h1>
+        <div class="user-info">
+            <span id="adminRoleSpan"></span>
+            <button id="logoutAdminBtn" class="small">退出登录</button>
+        </div>
+    </div>
+
+    <details open>
+        <summary>待人工确认的任务</summary>
+        <div class="header-buttons">
+            <button id="exportTasksBtn" class="small success">导出Excel</button>
+        </div>
+        <div id="taskList">加载中...</div>
+    </details>
+
+    <details open>
+        <summary>待授权邮箱（需先确认付款）</summary>
+        <div id="authList">加载中...</div>
+    </details>
+
+    <details open>
+        <summary>📢 系统通知管理</summary>
+        <div class="notice-form">
+            <input type="text" id="noticeTitle" placeholder="通知标题" maxlength="200">
+            <textarea id="noticeContent" rows="3" placeholder="通知内容（支持换行）"></textarea>
+            <button id="publishNoticeBtn" class="success">发布通知</button>
+        </div>
+        <div id="noticeList">加载中...</div>
+    </details>
+
+    <details open>
+        <summary>邮箱管理（所有已注册邮箱）</summary>
+        <div class="header-buttons">
+            <button id="exportEmailsBtn" class="small success">导出Excel</button>
+        </div>
+        <div id="emailManageList">加载中...</div>
+    </details>
+
+    <details open>
+        <summary>奖励管理</summary>
+        <div class="header-buttons">
+            <button id="exportCommissionsBtn" class="small success">导出Excel</button>
+        </div>
+        <div id="commissionList">加载中...</div>
+    </details>
+
+    <div id="superAdminSection" class="admin-section" style="display:none;">
+        <h2>管理员管理（仅超级管理员）</h2>
+        <div>
+            <input type="text" id="newAdminName" placeholder="用户名" style="margin-right:10px;">
+            <input type="password" id="newAdminPwd" placeholder="密码">
+            <select id="newAdminRole">
+                <option value="admin">普通管理员</option>
+                <option value="super">超级管理员</option>
+            </select>
+            <button id="createAdminBtn">添加管理员</button>
+        </div>
+        <div id="adminList" style="margin-top:15px;">加载中...</div>
+    </div>
+</div>
+
+<script>
+    let adminToken = null;
+    let adminRole = null;
+    let tasksData = [], emailsData = [], commissionsData = [], adminUsers = [];
+    let plansData = [];
+
+    // 工具函数
+    function formatDate(ts) {
+        if (!ts) return '未知';
+        let num = Number(ts);
+        if (isNaN(num)) return '无效';
+        if (num < 10000000000) num = num * 1000;
+        return new Date(num).toLocaleString();
+    }
+    function formatExpiration(ts) {
+        if (!ts) return '无';
+        let now = Math.floor(Date.now() / 1000);
+        let remaining = ts - now;
+        if (remaining <= 0) return '<span class="expired">已过期</span>';
+        let days = Math.ceil(remaining / 86400);
+        if (days <= 7) return `<span class="expiring-soon">${days}天后过期</span>`;
+        return `${days}天`;
+    }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;');
+    }
+
+    // 导出 CSV
+    function exportToCSV(data, filename, columns) {
+        if (!data.length) { alert('无数据'); return; }
+        const rows = [columns.map(c=>c.label)];
+        for(const item of data){
+            rows.push(columns.map(c=>{
+                let val = item[c.key] !== undefined ? item[c.key] : '';
+                if(c.format && typeof c.format === 'function') val = c.format(val);
+                if(typeof val === 'string') val = val.replace(/"/g,'""');
+                if(val && (val.includes(',')||val.includes('"'))) val = '"'+val+'"';
+                return val;
+            }).join(','));
+        }
+        const blob = new Blob(["\uFEFF"+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename+'.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    // API 请求封装
+    async function apiAdmin(method, path, body=null) {
+        const headers = { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+        const options = { method, headers, credentials: 'include' };
+        if(body) options.body = JSON.stringify(body);
+        const res = await fetch(path, options);
+        if(res.status === 401 || res.status === 403) {
+            alert('登录已过期，请重新登录');
+            logout();
+            return null;
+        }
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || '请求失败');
+        return data;
+    }
+
+    // 获取套餐配置
+    async function loadPlans() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            plansData = data.plans;
+        } catch(e) { console.warn(e); }
+    }
+
+    // 生成套餐选择HTML（用于确认付款弹窗）
+    function getPlanSelectHtml() {
+        if (!plansData.length) return '<p>加载套餐失败</p>';
+        let html = '<select id="planSelect" class="plan-select">';
+        for (let p of plansData) {
+            html += `<option value="${p.id}">${p.name} - ${p.price_yuan}元</option>`;
+        }
+        html += '</select>';
+        return html;
+    }
+
+    // ========== 通知管理 ==========
+    async function loadNotices() {
+        try {
+            const notices = await apiAdmin('GET', '/api/admin/notices');
+            const container = document.getElementById('noticeList');
+            if(!notices.length){ container.innerHTML='<p>暂无通知</p>'; return; }
+            let html = '';
+            for(const n of notices){
+                html += `<div class="notice-item">
+                    <div class="notice-content">
+                        <div class="notice-title">${escapeHtml(n.title)}</div>
+                        <div class="notice-meta">${escapeHtml(n.content)}<br>发布于 ${formatDate(n.created_at)} ${n.is_deleted ? ' [已删除]' : ''}</div>
+                    </div>
+                    <button class="del-btn" onclick="deleteNotice(${n.id})">删除</button>
+                </div>`;
+            }
+            container.innerHTML = html;
+        } catch(e){ console.error(e); document.getElementById('noticeList').innerHTML='<div style="color:red;">加载失败</div>'; }
+    }
+
+    async function publishNotice() {
+        const title = document.getElementById('noticeTitle').value.trim();
+        const content = document.getElementById('noticeContent').value.trim();
+        if(!title || !content){ alert('请填写标题和内容'); return; }
+        if(!confirm('确认发布此通知？所有用户将在用户中心看到。')) return;
+        try{
+            await apiAdmin('POST', '/api/admin/notice', { title, content });
+            alert('发布成功');
+            document.getElementById('noticeTitle').value = '';
+            document.getElementById('noticeContent').value = '';
+            loadNotices();
+        } catch(e){ alert('发布失败：'+e.message); }
+    }
+
+    async function deleteNotice(id) {
+        if(!confirm('确认删除该通知？删除后用户将看不到，且不可恢复。')) return;
+        try{
+            await apiAdmin('DELETE', `/api/admin/notice/${id}`, null);
+            alert('删除成功');
+            loadNotices();
+        } catch(e){ alert('删除失败：'+e.message); }
+    }
+
+    // ========== 待人工确认任务 ==========
+    async function loadTasks() {
+        try{
+            const tasks = await apiAdmin('GET', '/api/customer/pending-tasks');
+            tasksData = tasks;
+            const container = document.getElementById('taskList');
+            if(!tasks.length){ container.innerHTML='<p>暂无待确认任务</p>'; return; }
+            let html='';
+            for(const t of tasks){
+                html+=`<div class="card">
+                    <strong>${escapeHtml(t.name)}</strong><br>
+                    用户邮箱：${escapeHtml(t.user_email)}<br>
+                    监督人邮箱：${escapeHtml(t.finalEmail)}<br>
+                    联系电话：${escapeHtml(t.contactPhone||'无')}<br>
+                    最后打卡：${formatDate(t.lastCheckin)}<br>
+                    <button onclick="sendFinal('${t.id}')">确认发送终止通知</button>
+                </div>`;
+            }
+            container.innerHTML=html;
+        } catch(e){ document.getElementById('taskList').innerHTML=`<div style="color:red;">加载失败：${e.message}</div>`; }
+    }
+
+    // 发送终止通知（管理员确认后）
+    async function sendFinal(taskId) {
+        if(!confirm('确认发送终止通知？')) return;
+        try{
+            await apiAdmin('POST', `/api/customer/send-final/${taskId}`, null);
+            alert('发送成功');
+            location.reload();
+        } catch(e){ alert('发送失败'); }
+    }
+
+    // ========== 待授权邮箱 ==========
+    async function loadAuths() {
+        try{
+            const auths = await apiAdmin('GET', '/api/admin/pending-auths');
+            const container = document.getElementById('authList');
+            if(!auths.length){ container.innerHTML='<p>暂无待授权邮箱</p>'; return; }
+            let html='';
+            for(const item of auths){
+                html+=`<div class="auth-item">
+                    <div><strong>${escapeHtml(item.email)}</strong><br>授权码：${escapeHtml(item.auth_code)}<br>申请：${formatDate(item.created_at)}<br>过期：${formatDate(item.expires_at)}<br>支付状态：${item.payment_status==='paid'?'已付款':'未付款'}<br>推荐人：${escapeHtml(item.referrer_email||'无')}</div>
+                    <div>${item.payment_status!=='paid'?`<button class="small" onclick="confirmPayment('${item.email}')">确认收款</button>`:''}<button class="small" onclick="sendAuthCode('${item.email}')">发送授权码</button></div>
+                </div>`;
+            }
+            container.innerHTML=html;
+        } catch(e){ document.getElementById('authList').innerHTML=`<div style="color:red;">加载失败：${e.message}</div>`; }
+    }
+
+    // 确认付款（弹出套餐选择）
+    async function confirmPayment(email) {
+        await loadPlans();
+        if (!plansData.length) { alert('套餐数据加载失败'); return; }
+        const selectHtml = getPlanSelectHtml();
+        const modalHtml = `
+            <div id="customPlanDialog" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;">
+                <div style="background:white; padding:20px; border-radius:12px; max-width:300px; text-align:center;">
+                    <h3>选择套餐</h3>
+                    ${selectHtml}
+                    <div style="margin-top:20px;">
+                        <button id="dialogConfirmBtn" style="margin-right:10px;">确认</button>
+                        <button id="dialogCancelBtn">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const dialog = document.getElementById('customPlanDialog');
+        const confirmBtn = document.getElementById('dialogConfirmBtn');
+        const cancelBtn = document.getElementById('dialogCancelBtn');
+        return new Promise((resolve) => {
+            const cleanup = () => { dialog.remove(); resolve(null); };
+            confirmBtn.onclick = () => {
+                const select = document.getElementById('planSelect');
+                const selectedPlan = select.value;
+                dialog.remove();
+                if(!confirm(`确认已收到该用户的付款？将分配套餐 ${selectedPlan}`)) return;
+                apiAdmin('POST', '/api/admin/confirm-payment', { email, plan_type: selectedPlan })
+                    .then(() => { alert('付款确认成功，奖励记录已生成'); location.reload(); })
+                    .catch(e => alert('失败：'+e.message));
+                resolve(selectedPlan);
+            };
+            cancelBtn.onclick = cleanup;
+        });
+    }
+
+    // 发送授权码（线下付款后人工发送）
+    async function sendAuthCode(email) {
+        if(!confirm('确认发送授权码？')) return;
+        try{
+            await apiAdmin('POST', '/api/admin/send-auth-code', { email });
+            alert('授权码已发送');
+            location.reload();
+        } catch(e){ alert('失败：'+e.message); }
+    }
+
+    // ========== 邮箱管理 ==========
+    async function loadEmails() {
+        try{
+            const emails = await apiAdmin('GET', '/api/admin/manage-emails');
+            emailsData = emails;
+            const container = document.getElementById('emailManageList');
+            if(!emails.length){ container.innerHTML='<p>暂无邮箱记录</p>'; return; }
+            let html=`<table><thead><tr><th>邮箱</th><th>状态</th><th>支付状态</th><th>套餐</th><th>有效期至</th><th>剩余</th><th>推荐人</th><th>注册时间</th><th>操作</th></tr></thead><tbody>`;
+            for(const item of emails){
+                let statusClass = item.status==='active'?'status-active':'status-disabled';
+                let statusText = item.status==='active'?'正常':'停用';
+                let paymentText = item.payment_status==='paid'?'已付款':'未付款';
+                let expirationDate = item.subscription_expires_at ? new Date(item.subscription_expires_at*1000).toLocaleDateString() : '永久';
+                let remainingHtml = item.subscription_expires_at ? formatExpiration(item.subscription_expires_at) : '永久';
+                html+=`<tr>
+                    <td>${escapeHtml(item.email)}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${paymentText}</td>
+                    <td>${item.plan_type||'无'}</td>
+                    <td>${expirationDate}</td>
+                    <td>${remainingHtml}</td>
+                    <td>${escapeHtml(item.referrer_email||'')}</td>
+                    <td>${formatDate(item.created_at)}</td>
+                    <td>
+                        ${item.status==='active'?`<button class="small" onclick="disableEmail('${item.email}')">停用</button>`:`<button class="small" onclick="enableEmail('${item.email}')">恢复</button>`}
+                        ${adminRole === 'super' ? `<button class="small" onclick="deleteEmailWithConfirm('${item.email}')">删除</button>` : ''}
+                        <button class="small" onclick="showExtendModal('${item.email}')">续期</button>
+                    </td>
+                </tr>`;
+            }
+            html+='</tbody></table>';
+            container.innerHTML=html;
+        } catch(e){ document.getElementById('emailManageList').innerHTML=`<div style="color:red;">加载失败：${e.message}</div>`; }
+    }
+
+    async function disableEmail(email) {
+        if(!confirm(`确认停用邮箱 ${email}？用户将无法登录。`)) return;
+        try{
+            await apiAdmin('POST', '/api/admin/disable-email', { email });
+            alert('停用成功');
+            location.reload();
+        } catch(e){ alert('停用失败'); }
+    }
+
+    async function enableEmail(email) {
+        if(!confirm(`确认恢复邮箱 ${email}？`)) return;
+        try{
+            await apiAdmin('POST', '/api/admin/enable-email', { email });
+            alert('恢复成功');
+            location.reload();
+        } catch(e){ alert('恢复失败'); }
+    }
+
+    async function deleteEmailWithConfirm(email) {
+        if(adminRole !== 'super') { alert('只有超级管理员可以删除邮箱'); return; }
+        const confirmMsg = `永久删除警告\n\n确定要删除邮箱 ${email} 吗？此操作不可恢复！`;
+        if (!confirm(confirmMsg)) return;
+        try{
+            await apiAdmin('POST', '/api/admin/delete-email', { email });
+            alert('删除成功');
+            location.reload();
+        } catch(e){ alert('删除失败：'+e.message); }
+    }
+
+    function showExtendModal(email) {
+        let days = prompt(`为 ${email} 增加多少天有效期？`, '365');
+        if(days && !isNaN(parseInt(days))){
+            apiAdmin('POST', '/api/admin/update-expiration', { email, add_days: parseInt(days) })
+                .then(data=>{ if(data.success){ alert('续期成功'); location.reload(); } })
+                .catch(e=>alert('失败：'+e.message));
+        }
+    }
+
+    // ========== 奖励管理 ==========
+    async function loadCommissions() {
+        try{
+            const comms = await apiAdmin('GET', '/api/admin/commissions');
+            commissionsData = comms;
+            const container = document.getElementById('commissionList');
+            if(!comms.length){ container.innerHTML='<p>暂无奖励记录</p>'; return; }
+            let html=`<table class="commission-table"><thead><tr><th>ID</th><th>推荐人</th><th>被推荐人</th><th>金额(元)</th><th>状态</th><th>关联套餐</th><th>创建时间</th><th>操作</th></tr></thead><tbody>`;
+            for(const c of comms){
+                let amountYuan = (c.amount/100).toFixed(2);
+                html+=`<tr>
+                    <td>${c.id}</td>
+                    <td>${escapeHtml(c.referrer_email)}</td>
+                    <td>${escapeHtml(c.user_email)}</td>
+                    <td>${amountYuan}</td>
+                    <td>${c.status==='pending'?'待发放':'已发放'}</td>
+                    <td>${c.plan_type||'—'}</td>
+                    <td>${formatDate(c.created_at)}</td>
+                    <td>${c.status==='pending'?`<button class="small" onclick="markCommissionPaid(${c.id})">标记已发放</button>`:''}</td>
+                </tr>`;
+            }
+            html+='</tbody></table>';
+            container.innerHTML = html;
+        } catch(e){ document.getElementById('commissionList').innerHTML=`<div style="color:red;">加载失败：${e.message}</div>`; }
+    }
+
+    async function markCommissionPaid(id) {
+        if(!confirm('确认已经给推荐人转账？')) return;
+        try{
+            await apiAdmin('POST', '/api/admin/mark-commission-paid', { commission_id: id });
+            alert('已标记发放');
+            location.reload();
+        } catch(e){ alert('失败：'+e.message); }
+    }
+
+    // ========== 管理员管理（仅超级管理员） ==========
+    async function loadAdminUsers() {
+        if(adminRole !== 'super') return;
+        try{
+            const users = await apiAdmin('GET', '/api/admin/users');
+            adminUsers = users;
+            const container = document.getElementById('adminList');
+            if(!users.length){ container.innerHTML='<p>暂无管理员</p>'; return; }
+            let html=`<table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody>`;
+            for(const u of users){
+                html+=`<tr>
+                    <td>${u.id}</td>
+                    <td>${escapeHtml(u.username)}</td>
+                    <td>${u.role==='super'?'超级管理员':'普通管理员'}</td>
+                    <td>${formatDate(u.created_at)}</td>
+                    <td>${u.username !== 'admin' ? `<button class="small" onclick="deleteAdminUser(${u.id})">删除</button>` : ''}</td>
+                </tr>`;
+            }
+            html+='</tbody></table>';
+            container.innerHTML=html;
+        } catch(e){ console.error(e); }
+    }
+
+    async function createAdmin() {
+        const username = document.getElementById('newAdminName').value.trim();
+        const password = document.getElementById('newAdminPwd').value.trim();
+        const role = document.getElementById('newAdminRole').value;
+        if(!username || !password) return alert('用户名和密码必填');
+        try{
+            await apiAdmin('POST', '/api/admin/users', { username, password, role });
+            alert('管理员创建成功');
+            document.getElementById('newAdminName').value = '';
+            document.getElementById('newAdminPwd').value = '';
+            loadAdminUsers();
+        } catch(e){ alert('创建失败：'+e.message); }
+    }
+
+    async function deleteAdminUser(id) {
+        if(!confirm('确认删除该管理员？')) return;
+        try{
+            await apiAdmin('DELETE', `/api/admin/users/${id}`, null);
+            alert('删除成功');
+            loadAdminUsers();
+        } catch(e){ alert('删除失败：'+e.message); }
+    }
+
+    // 退出登录
+    function logout() {
+        adminToken = null;
+        adminRole = null;
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_role');
+        document.getElementById('loginView').style.display = 'block';
+        document.getElementById('adminView').style.display = 'none';
+    }
+
+    // ========== 事件绑定与初始化 ==========
+    document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+        const username = document.getElementById('adminUsername').value.trim();
+        const password = document.getElementById('adminPassword').value.trim();
+        const errorDiv = document.getElementById('loginError');
+        if(!username || !password) { errorDiv.innerText = '请输入用户名和密码'; return; }
+        try{
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error);
+            adminToken = data.token;
+            adminRole = data.role;
+            localStorage.setItem('admin_token', adminToken);
+            localStorage.setItem('admin_role', adminRole);
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('adminView').style.display = 'block';
+            document.getElementById('adminRoleSpan').innerText = `当前角色：${adminRole === 'super' ? '超级管理员' : '普通管理员'}`;
+            if(adminRole === 'super') document.getElementById('superAdminSection').style.display = 'block';
+            else document.getElementById('superAdminSection').style.display = 'none';
+            await loadPlans();
+            loadTasks();
+            loadAuths();
+            loadEmails();
+            loadCommissions();
+            loadNotices();
+            if(adminRole === 'super') loadAdminUsers();
+        } catch(e){
+            errorDiv.innerText = e.message;
+        }
+    });
+
+    document.getElementById('logoutAdminBtn')?.addEventListener('click', logout);
+    document.getElementById('createAdminBtn')?.addEventListener('click', createAdmin);
+    document.getElementById('publishNoticeBtn')?.addEventListener('click', publishNotice);
+
+    // 导出按钮
+    document.getElementById('exportTasksBtn')?.addEventListener('click', ()=>{
+        if(tasksData.length) {
+            const columns = [
+                { label: '任务名', key: 'name' },
+                { label: '用户邮箱', key: 'user_email' },
+                { label: '监督人邮箱', key: 'finalEmail' },
+                { label: '联系电话', key: 'contactPhone' },
+                { label: '最后打卡', key: 'lastCheckin' }
+            ];
+            exportToCSV(tasksData, '待确认任务', columns);
+        } else alert('无数据');
+    });
+    document.getElementById('exportEmailsBtn')?.addEventListener('click', ()=>{
+        if(emailsData.length) {
+            const columns = [
+                { label: '邮箱', key: 'email' },
+                { label: '状态', key: 'status' },
+                { label: '支付状态', key: 'payment_status' },
+                { label: '套餐', key: 'plan_type' },
+                { label: '有效期至', key: 'subscription_expires_at', format: (v)=> v ? new Date(v*1000).toLocaleDateString() : '' },
+                { label: '推荐人', key: 'referrer_email' },
+                { label: '注册时间', key: 'created_at', format: (v)=> formatDate(v) }
+            ];
+            exportToCSV(emailsData, '已注册邮箱', columns);
+        } else alert('无数据');
+    });
+    document.getElementById('exportCommissionsBtn')?.addEventListener('click', ()=>{
+        if(commissionsData.length) {
+            const columns = [
+                { label: 'ID', key: 'id' },
+                { label: '推荐人', key: 'referrer_email' },
+                { label: '被推荐人', key: 'user_email' },
+                { label: '金额(元)', key: 'amount', format: (v)=> (v/100).toFixed(2) },
+                { label: '状态', key: 'status' },
+                { label: '关联套餐', key: 'plan_type' },
+                { label: '创建时间', key: 'created_at', format: (v)=> formatDate(v) }
+            ];
+            exportToCSV(commissionsData, '奖励记录', columns);
+        } else alert('无数据');
+    });
+
+    // 自动登录检查
+    const savedToken = localStorage.getItem('admin_token');
+    const savedRole = localStorage.getItem('admin_role');
+    if(savedToken && savedRole) {
+        adminToken = savedToken;
+        adminRole = savedRole;
+        fetch('/api/admin/pending-auths', { headers: { 'Authorization': `Bearer ${savedToken}` } })
+            .then(res => {
+                if(res.ok) {
+                    document.getElementById('loginView').style.display = 'none';
+                    document.getElementById('adminView').style.display = 'block';
+                    document.getElementById('adminRoleSpan').innerText = `当前角色：${adminRole === 'super' ? '超级管理员' : '普通管理员'}`;
+                    if(adminRole === 'super') document.getElementById('superAdminSection').style.display = 'block';
+                    else document.getElementById('superAdminSection').style.display = 'none';
+                    loadPlans().then(()=>{
+                        loadTasks();
+                        loadAuths();
+                        loadEmails();
+                        loadCommissions();
+                        loadNotices();
+                        if(adminRole === 'super') loadAdminUsers();
+                    });
+                } else { logout(); }
+            })
+            .catch(()=>logout());
+    }
+
+    // 挂载全局函数供按钮调用
+    window.confirmPayment = confirmPayment;
+    window.sendAuthCode = sendAuthCode;
+    window.markCommissionPaid = markCommissionPaid;
+    window.disableEmail = disableEmail;
+    window.enableEmail = enableEmail;
+    window.deleteEmailWithConfirm = deleteEmailWithConfirm;
+    window.sendFinal = sendFinal;
+    window.showExtendModal = showExtendModal;
+    window.deleteAdminUser = deleteAdminUser;
+    window.deleteNotice = deleteNotice;
+</script>
+</body>
+</html>
