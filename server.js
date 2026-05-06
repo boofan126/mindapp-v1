@@ -1021,11 +1021,11 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
     const wasPaid = before.rows[0]?.payment_status === 'paid';
 
     const result = await pool.query(
-      `UPDATE email_authorizations 
-       SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3, authorized = true
-       WHERE email = $4 AND payment_status = 'unpaid'`,
-      [now, plan, newExpiration, email]
-    );
+  `UPDATE email_authorizations 
+   SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3
+   WHERE email = $4 AND payment_status = 'unpaid'`,
+  [now, plan, newExpiration, email]
+);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: '未找到待确认付款的邮箱或已付款' });
     }
