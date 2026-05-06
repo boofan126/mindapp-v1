@@ -72,7 +72,7 @@
         .plan-selector { display:flex; justify-content:space-between; gap:12px; margin:12px 0 12px; }
         .plan-option { flex:1; border:1px solid #dee2e6; border-radius:24px; padding:10px 6px; text-align:center; cursor:pointer; background:#f8f9fa; transition:0.1s; }
         .plan-option.selected { border:2px solid #007bff; background:#e7f0ff; box-shadow:0 2px 6px rgba(0,123,255,0.2); }
-        .plan-price { font-weight:800; font-size:0.8rem; color:#1e2a3a; white-space:nowrap; }
+        .plan-price { font-weight:800; font-size:0.8rem; color:#1e2a3a; /* white-space:nowrap; */line-height: 1; text-align: center;}
         .plan-name { display:none; }
         .plan-reward { display:none; }
         .expiry-warning { background:#fff3cd; border-left:4px solid #ffc107; padding:10px 12px; margin-top:10px; border-radius:12px; font-size:0.75rem; }
@@ -411,16 +411,16 @@
     }
     function renderPlanSelector() {
         const container = document.getElementById('planSelector');
-        if(!container||!plansData.length) return;
-        container.innerHTML = plansData.map(p=>{
-            let yearLabel = '';
-            if(p.id === '1y') yearLabel = '1Y';
-            else if(p.id === '2y') yearLabel = '2Y';
-            else if(p.id === '3y') yearLabel = '3Y';
-            const priceText = `${p.price_yuan} USD / ${yearLabel}`;
-            return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
-        }).join('');
-        container.style.display='flex';
+    if(!container||!plansData.length) return;
+    container.innerHTML = plansData.map(p=>{
+        let yearLabel = '';
+        if(p.id === '1y') yearLabel = '/1 year';
+        else if(p.id === '2y') yearLabel = '/2 years';
+        else if(p.id === '3y') yearLabel = '/3 years';
+        const priceText = `${p.price_yuan} USD <br> ${yearLabel}`;
+        return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
+    }).join('');
+    container.style.display='flex';
         document.querySelectorAll('#planSelector .plan-option').forEach(el=>{
             el.addEventListener('click',()=>{
                 document.querySelectorAll('#planSelector .plan-option').forEach(opt=>opt.classList.remove('selected'));
