@@ -72,59 +72,22 @@
         .plan-selector { display:flex; justify-content:space-between; gap:12px; margin:12px 0 12px; }
         .plan-option { flex:1; border:1px solid #dee2e6; border-radius:24px; padding:10px 6px; text-align:center; cursor:pointer; background:#f8f9fa; transition:0.1s; }
         .plan-option.selected { border:2px solid #007bff; background:#e7f0ff; box-shadow:0 2px 6px rgba(0,123,255,0.2); }
-        .plan-price { font-weight:800; font-size:0.8rem; color:#1e2a3a; /* white-space:nowrap; */line-height: 1; text-align: center;}
+        .plan-price { font-weight:800; font-size:0.8rem; color:#1e2a3a; line-height:1; text-align:center; }
         .plan-name { display:none; }
         .plan-reward { display:none; }
         .expiry-warning { background:#fff3cd; border-left:4px solid #ffc107; padding:10px 12px; margin-top:10px; border-radius:12px; font-size:0.75rem; }
         button:disabled { opacity:0.6; cursor:not-allowed; }
         .phone-hint { font-size:0.7rem; color:#6c757d; margin-top:4px; }
-        .subscription-tip {
-            background: #d1ecf1;
-            color: #0c5460;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        .notice-bar {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            border-radius: 16px;
-            padding: 12px;
-            margin-bottom: 16px;
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .notice-title {
-            font-weight: bold;
-            font-size: 0.85rem;
-            margin-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .notice-title span:first-child { color: #0d47a1; }
-        .notice-content { font-size: 0.75rem; color: #1e2a3a; line-height: 1.4; white-space: pre-wrap; }
-        .notice-close {
-            cursor: pointer;
-            font-size: 1rem;
-            color: #888;
-            background: none;
-            border: none;
-            padding: 0 4px;
-            line-height: 1;
-        }
-        .notice-close:hover { color: #333; }
-        .new-user-hint {
-            font-size: 0.7rem;
-            color: #6c757d;
-            margin: 8px 0 4px;
-            text-align: center;
-        }
-        /* Modal styles */
-        .modal-card textarea { border-radius: 16px; margin-top: 8px; }
-        .modal-card select { margin: 8px 0; }
+        .subscription-tip { background:#d1ecf1; color:#0c5460; padding:8px 12px; border-radius:20px; font-size:0.75rem; margin-bottom:12px; text-align:center; }
+        .notice-bar { background:#e3f2fd; border-left:4px solid #2196f3; border-radius:16px; padding:12px; margin-bottom:16px; position:relative; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+        .notice-title { font-weight:bold; font-size:0.85rem; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+        .notice-title span:first-child { color:#0d47a1; }
+        .notice-content { font-size:0.75rem; color:#1e2a3a; line-height:1.4; white-space:pre-wrap; }
+        .notice-close { cursor:pointer; font-size:1rem; color:#888; background:none; border:none; padding:0 4px; line-height:1; }
+        .notice-close:hover { color:#333; }
+        .new-user-hint { font-size:0.7rem; color:#6c757d; margin:8px 0 4px; text-align:center; }
+        .modal-card textarea { border-radius:16px; margin-top:8px; }
+        .modal-card select { margin:8px 0; }
     </style>
 </head>
 <body>
@@ -145,16 +108,15 @@
                 <button class="secondary small" id="sendLoginCodeBtn">Get Code</button>
             </div>
             <button class="primary enter-btn" id="verifyAndEnterBtn">Verify & Enter</button>
-            <div class="intro-image-wrapper" style="text-align: center; margin: 24px 0 16px;">
+            <div class="intro-image-wrapper" style="text-align:center; margin:24px 0 16px;">
                 <a href="/mind-introduce/introduce.html" target="_blank">
-                    <img src="/mind-introduce/images/my-photo.png" alt="Learn about Mind Insurance" style="max-width: 80%; height: auto; border-radius: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.1); cursor: pointer; display: block; margin: 0 auto;">
+                    <img src="/mind-introduce/images/my-photo.png" alt="Learn about Mind Insurance" style="max-width:80%; height:auto; border-radius:20px; box-shadow:0 6px 16px rgba(0,0,0,0.1); cursor:pointer; display:block; margin:0 auto;">
                 </a>
             </div>
             <div class="privacy-link">
                 <a href="#" id="showPrivacyLink">Privacy Policy</a> |
                 <a href="#" id="showTermsLink">Terms of Service</a>
             </div>
-            
             <div class="icp-footer">MP：13585512586 &nbsp;| eMail：support@shkind.cn</div>
         </div>
     </div>
@@ -182,7 +144,7 @@
             <h1><img class="logo-img" src="logo.png" alt="logo">Mind Insurance</h1>
         </div>
         <div class="subhead">User Center</div>
-        <div id="noticeContainer" style="margin-bottom: 12px;"></div>
+        <div id="noticeContainer" style="margin-bottom:12px;"></div>
         <div class="user-center-card">
             <h3>My Referral Link</h3>
             <div class="referral-link">
@@ -193,7 +155,7 @@
             <h3 style="margin-top:20px;">Commission Balance</h3>
             <p id="commissionBalance" style="font-size:1.2rem; font-weight:600;">0 CNY</p>
             <div id="subscriptionInfo" class="expiry-warning"></div>
-            <div id="renewBtnContainer" style="margin: 10px 0;"></div>
+            <div id="renewBtnContainer" style="margin:10px 0;"></div>
             <h3>Commission Records</h3>
             <div id="commissionList">Loading...</div>
             <button id="toggleCommissionBtn" class="toggle-commissions-btn" style="display:none; margin-top:10px; background:#e9ecef; border:none;">Expand All</button>
@@ -256,20 +218,8 @@
     </div>
 
     <!-- Privacy & Terms Modals -->
-    <div id="privacyModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h3>🔒 Privacy Policy</h3>
-            <div id="privacyContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div>
-            <button id="closePrivacyBtn" class="secondary" style="margin-top:12px;">Close</button>
-        </div>
-    </div>
-    <div id="termsModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h3>📜 Terms of Service</h3>
-            <div id="termsContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div>
-            <button id="closeTermsBtn" class="secondary" style="margin-top:12px;">Close</button>
-        </div>
-    </div>
+    <div id="privacyModal" class="modal-overlay hidden"><div class="modal-card"><h3>🔒 Privacy Policy</h3><div id="privacyContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closePrivacyBtn" class="secondary" style="margin-top:12px;">Close</button></div></div>
+    <div id="termsModal" class="modal-overlay hidden"><div class="modal-card"><h3>📜 Terms of Service</h3><div id="termsContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closeTermsBtn" class="secondary" style="margin-top:12px;">Close</button></div></div>
 </div>
 
 <script>
@@ -297,6 +247,7 @@
         noNeedConfirm: 'No confirm',
         lastCheckinLabel: 'Last check-in: ',
         noTasks: 'No tasks, create one',
+        never: 'Never',
         confirmDelete: 'Delete this task?',
         confirmSave: 'Save changes?',
         taskNamePlaceholder: 'Task name',
@@ -326,10 +277,8 @@
         copiedSuccess: 'Link copied',
         copyFailed: 'Copy failed, please manually copy',
         newUserHint: 'New user, please select a plan:',
-            
-            privacyText:`<p><strong>Welcome to "Mind Insurance"!</strong></p><p><strong>Introduction</strong></p><p>Welcome to "Mind Insurance" (hereinafter referred to as "this Application"). We take your privacy very seriously. This Privacy Policy explains how we collect, use, store, share, and protect your personal information, as well as how you can manage your personal information. Please read and fully understand this policy before using this Application. By using this Application, you agree to all terms of this Privacy Policy.</p><p><strong>1. How We Collect Your Personal Information</strong></p><p>1.1 Information you provide voluntarily: When you register an account, create tasks, check in, participate in referral rewards, or use customer service, we may collect your email address, contact phone number, task content, check-in times, and other information you voluntarily fill in.</p><p>1.2 To complete paid services, you need to choose a plan (1-year/2-year/3-year). We will collect necessary transaction information (such as order number, payment amount, plan type) through third-party payment service providers (WeChat Pay, Alipay), but we do not collect your bank account or password sensitive information.</p><p>1.3 To calculate referral rewards, we will record referral relationships (the email associated when your referral link is clicked) and record the reward amount and corresponding plan type when the user you referred completes payment.</p><p>1.4 Device and log information: To ensure stable service operation, we may collect your device model, operating system version, IP address, operation logs, and other information for troubleshooting and analysis.</p><p><strong>2. How We Use Your Personal Information</strong></p><p>2.1 Provide core services: Used to verify your identity, send check-in reminders, process task status, manage subscription validity (calculate remaining days, expiration notifications), and notify you of service changes.</p><p>2.2 Referral reward function: When a user you refer registers, we record the referral relationship, and after they complete payment, you will receive a corresponding reward based on the plan they purchased. You can view your referral link and reward records (including reward amount, associated plan, status) in the "User Center".</p><p>2.3 Customer service and communication: Used to respond to your inquiries, handle complaints, or send service notifications (such as payment confirmation, authorization codes, subscription expiration reminders, etc.).</p><p>2.4 Legal compliance: Used to fulfill legal obligations, resolve disputes, or enforce our User Agreement.</p><p><strong>3. How We Store and Protect Your Personal Information</strong></p><p>3.1 Storage location: Your personal information will be stored on servers within the territory of the People's Republic of China. We will not transfer your personal information outside the country.</p><p>3.2 Storage period: We will retain your personal information only for the shortest period necessary to provide you with services, including your subscription validity records. After you delete your account, we will promptly delete or anonymize your personal information.</p><p>3.3 Security measures: We use industry-standard security technologies (such as encrypted transmission, access control, firewalls) to protect your data. However, please understand that the Internet is not an absolutely secure environment, and we cannot guarantee absolute security.</p><p><strong>4. How We Share, Transfer, and Publicly Disclose Your Personal Information</strong></p><p>4.1 We will not share your personal information with any third party, except in the following circumstances:<br>- With your explicit consent;<br>- As required by laws, regulations, judicial authorities, or administrative agencies;<br>- Sharing with our affiliates or partners solely for the purposes described in this policy, and we will require the receiving party to comply with the same protection obligations;<br>- When you voluntarily participate in referral rewards, your referral link contains a short code (not your email), which is only used to identify the referrer.</p><p>4.2 We will not use your personal information for any commercial purpose without your consent.</p><p><strong>5. How You Can Manage Your Personal Information</strong></p><p>5.1 You have the right to access, correct, and delete your personal information. You can edit or delete tasks on the "Task List" page, and view your referral information and remaining subscription days in the "User Center". If you need to delete your account, please contact us via email at support@shkind.cn, and we will process your request within 15 working days.</p><p>5.2 You can refuse or manage cookies through your browser or device settings, but this may affect some functions (such as auto-login).</p><p>5.3 If you believe your rights have been violated, you can file a complaint with us or report it to relevant authorities such as the cyberspace administration or the Ministry of Industry and Information Technology.</p><p><strong>6. Protection of Minors</strong></p><p>This Application is primarily intended for adults. If you are under 18 years old, please use it under the guidance of a parent or guardian. We do not actively collect personal information from children under the age of 14.</p><p><strong>7. Updates to This Policy</strong></p><p>We may revise this Privacy Policy from time to time. If there are material changes, we will notify you via pop-up, email, or announcement. Continued use of this Application indicates your acceptance of the revised policy.</p><p><strong>8. Contact Us</strong></p><p>If you have any questions or suggestions regarding this policy, please contact us:<br>Email: support@shkind.cn<br></p><p><strong>Last Updated: May 3, 2026</strong></p>`,
-            termsText:`<p><strong>Welcome to "Mind Insurance"!</strong></p><p>This User Agreement (hereinafter referred to as "this Agreement") is a legal agreement between you (hereinafter referred to as "User") and "Mind Insurance" (hereinafter referred to as "this Application") regarding the use of this Application's services. Please read and fully understand it before use. By registering, logging in, or using this Application, you agree to be bound by all terms of this Agreement.</p><p><strong>1. Service Content</strong></p><p>1.1 This Application provides periodic check-in reminders, task management, email notifications, referral rewards, and subscription plans (1-year/2-year/3-year). The specific functions are subject to actual availability in the Application.</p><p>1.2 This Application reserves the right to adjust, suspend, or terminate certain services based on operational needs, but will notify you in advance via announcements or email.</p><p><strong>2. Account Registration and Use</strong></p><p>2.1 You must use a valid email address to register an account. You must ensure the authenticity and accuracy of the registration information and are responsible for all actions taken under your account.</p><p>2.2 You shall not transfer, lend, or allow others to use your account. If you find any abnormal activity on your account, please contact us immediately.</p><p>2.3 If you violate this Agreement or applicable laws and regulations, we have the right to suspend or terminate your account and delete related data.</p><p><strong>3. Paid Subscription Service</strong></p><p>3.1 This Application adopts a plan-based subscription model, offering three plans: 1-year, 2-year, and 3-year. You may choose any plan as needed. After successful payment, your account will be granted a subscription validity period of the corresponding duration.</p><p>3.2 During the subscription validity period, you can use all functions of this Application normally. After the validity period expires, you will not be able to log in or use the service, but your historical data will be retained for a certain period (30 days). You may continue using the service after renewal.</p><p>3.3 You can extend your subscription validity period through the "Renew" function in the User Center. When renewing, you can choose any plan, and the validity period will be added to the remaining validity period (if already expired, it starts from the renewal success date).</p><p>3.4 You complete payment through third-party payment platforms (WeChat Pay, Alipay). Unless otherwise provided by law or this Agreement, paid fees are generally non-refundable (if the service is unavailable due to our reasons, you may apply for a refund based on the remaining days).</p><p><strong>4. Referral Reward Rules</strong></p><p>4.1 Users who have paid and have a valid subscription can share a unique referral link to invite new users. When a new user registers through that link and makes their first successful purchase of any plan, the referrer will receive a reward. The reward amount depends on the plan type purchased by the referred user (the exact amount will be displayed on the "User Center" page).</p><p>4.2 The referral relationship is recorded only when the referral link is clicked and the new user registers for the first time. Multiple clicks or registrations of different accounts by the same user are invalid.</p><p>4.3 Rewards are recorded with a "pending" status and can be viewed in the "User Center". Rewards will be distributed by administrators via offline transfer or online settlement. The platform will calculate the amount payable monthly and withhold individual income tax in accordance with the law.</p><p>4.4 Cheating behaviors such as self-referral, fake transactions, or malicious bulk registrations are prohibited. Once discovered, we have the right to cancel the reward qualification and recover distributed amounts.</p><p><strong>5. User Code of Conduct</strong></p><p>5.1 You shall not use this Application to engage in any illegal, infringing, or harmful activities, including but not limited to:<br>- Distributing viruses or malicious code;<br>- Sending spam or harassing messages;<br>- Infringing upon others' intellectual property or privacy rights.</p><p>5.2 You are responsible for the content of your check-in tasks and shall not use this Application to record illegal information.</p><p>5.3 If you violate the above rules, we have the right to immediately terminate the service and reserve the right to pursue legal liability.</p><p><strong>6. Service Termination and Refunds</strong></p><p>6.1 You may log out at any time by clicking "Switch Account", or contact customer service to request account deletion. After account deletion, all your tasks, historical data, and subscription records will be cleared and cannot be recovered.</p><p>6.2 If you violate this Agreement, we have the right to terminate your account without prior notice, and any paid fees will not be refunded.</p><p>6.3 For paid services, you may apply for a no-reason refund within 7 days after purchase (provided that you have not used the paid functions, i.e., no tasks created). After 7 days or if the functions have been used, no refund will be given. The specific rules are subject to the purchase page description.</p><p><strong>7. Disclaimer</strong></p><p>7.1 The check-in reminder service provided by this Application is only an auxiliary tool and does not guarantee task completion. We are not responsible for any failure to check in or missing tasks due to your personal reasons.</p><p>7.2 We are not responsible for service interruptions or data loss caused by force majeure (such as natural disasters, government actions, network failures, etc.).</p><p>7.3 For third-party websites or services linked through this Application, we are not responsible for their content or security.</p><p><strong>8. Intellectual Property</strong></p><p>8.1 All code, designs, icons, text content, and other intellectual property of this Application belong to us. Without written permission, you shall not copy, modify, or use them for commercial purposes.</p><p>8.2 The intellectual property rights of task content and other data generated during your use of this Application belong to you, but you authorize us to use such data for the purpose of providing services.</p><p><strong>9. Governing Law and Dispute Resolution</strong></p><p>9.1 The formation, execution, and interpretation of this Agreement shall be governed by the laws of the People's Republic of China.</p><p>9.2 In the event of a dispute, both parties shall attempt to resolve it through friendly negotiation. If negotiation fails, either party may file a lawsuit with the people's court in the place where the operator of this Application is located.</p><p><strong>10. Miscellaneous</strong></p><p>10.1 We may modify this Agreement from time to time. The modified version will be posted on this page. Your continued use of this Application constitutes acceptance of the modified terms.</p><p>10.2 If any provision of this Agreement is held invalid, the remaining provisions shall remain in full force and effect.</p><p><strong>Last Updated: May 3, 2026</strong></p>`
-      
+        privacyText: `<p><strong>Privacy Policy</strong></p><p>Content placeholder.</p>`,
+        termsText: `<p><strong>Terms of Service</strong></p><p>Content placeholder.</p>`
     };
 
     function t(key) { return i18n[key] || key; }
@@ -337,7 +286,7 @@
     function showToast(msg, isError=false){ let div=document.createElement('div'); div.className='toast'; div.innerText=msg; document.body.appendChild(div); setTimeout(()=>div.remove(),3000); }
     function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
     function formatDate(ts){
-        if(!ts) return 'Never';
+        if(!ts) return t('never');
         let num = Number(ts);
         if(isNaN(num)) return 'Invalid';
         if(num < 10000000000) num *= 1000;
@@ -354,7 +303,7 @@
         ].map(opt=>`<option value="${opt.value}">${opt.label}</option>`).join('');
     }
 
-    let currentUser = null, currentTaskId = null, finalMessageCache = '', tasks = [], pendingEmail = null, pendingPlan = null, payInterval = null, payTimeout = null, plansData = [], allCommissions = [], isExpanded = false, hiddenNoticeIds = [];
+    let currentUser = null, currentTaskId = null, finalMessageCache = '', tasks = [], pendingEmail = null, pendingPlan = null, plansData = [], allCommissions = [], isExpanded = false, hiddenNoticeIds = [];
 
     async function apiFetch(url, options={}) {
         const res = await fetch(url, { ...options, credentials: 'include' });
@@ -411,16 +360,16 @@
     }
     function renderPlanSelector() {
         const container = document.getElementById('planSelector');
-    if(!container||!plansData.length) return;
-    container.innerHTML = plansData.map(p=>{
-        let yearLabel = '';
-        if(p.id === '1y') yearLabel = '/1 year';
-        else if(p.id === '2y') yearLabel = '/2 years';
-        else if(p.id === '3y') yearLabel = '/3 years';
-        const priceText = `${p.price_yuan} USD <br> ${yearLabel}`;
-        return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
-    }).join('');
-    container.style.display='flex';
+        if(!container||!plansData.length) return;
+        container.innerHTML = plansData.map(p=>{
+            let yearLabel = '';
+            if(p.id === '1y') yearLabel = '/1 year';
+            else if(p.id === '2y') yearLabel = '/2 years';
+            else if(p.id === '3y') yearLabel = '/3 years';
+            const priceText = `${p.price_yuan} USD <br> ${yearLabel}`;
+            return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
+        }).join('');
+        container.style.display='flex';
         document.querySelectorAll('#planSelector .plan-option').forEach(el=>{
             el.addEventListener('click',()=>{
                 document.querySelectorAll('#planSelector .plan-option').forEach(opt=>opt.classList.remove('selected'));
@@ -546,10 +495,10 @@
         await fetch('/api/logout',{method:'POST',credentials:'include'});
         localStorage.removeItem('mind_user');
         currentUser=null;
+        document.getElementById('splashPage').classList.remove('hidden');
         document.getElementById('taskListPage').classList.add('hidden');
         document.getElementById('taskEditPage').classList.add('hidden');
         document.getElementById('userCenterPage').classList.add('hidden');
-        document.getElementById('splashPage').classList.remove('hidden');
         document.getElementById('loginEmail').value='';
         document.getElementById('loginCode').value='';
         showToast('Logged out');
@@ -616,7 +565,7 @@
         for(let c of shown){
             let statusText = c.status==='pending'?'Pending':'Paid';
             let amountYuan = (c.amount/100).toFixed(2);
-            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
+            html+=`｜｜DSML｜｜<td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
         }
         html+='</tbody></table>';
         container.innerHTML = html;
