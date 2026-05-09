@@ -4,15 +4,24 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const cron = require('node-cron');
+const nodemailer = require('nodemailer');
+const dns = require('dns');
+const { promisify } = require('util');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { body, validationResult, param } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const QRCode = require('qrcode');
+const crypto = require('crypto');
+const axios = require('axios');
+const fs = require('fs');
+const AlipaySdk = require('alipay-sdk').default;
+const AlipayFormData = require('alipay-sdk/lib/form').default;
 const bcrypt = require('bcryptjs');
 const validator = require('validator');
-const { Resend } = require('resend');
 
+const resolve4 = promisify(dns.resolve4);
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -109,9 +118,14 @@ async function initDB() {
         commission_balance INTEGER DEFAULT 0,
         total_earned INTEGER DEFAULT 0,
         plan_type VARCHAR(10),
-        subscription_expires_at BIGINT
+        subscription_expires_at BIGINT,
+        payment_account TEXT,
+        payment_account_type TEXT
       );
     `);
+    await client.query(`ALTER TABLE email_authorizations ADD COLUMN IF NOT EXISTS payment_account TEXT;`);
+    await client.query(`ALTER TABLE email_authorizations ADD COLUMN IF NOT EXISTS payment_account_type TEXT;`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS email_verification_codes (
         email TEXT NOT NULL,
@@ -226,30 +240,54 @@ function requireSuperAdmin(req, res, next) {
   next();
 }
 
-// ======================== Resend 邮件服务 ========================
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-async function sendEmail({ to, subject, text }) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Mind Insurance <service@${process.env.DOMAIN || 'mindapp.online'}>`,
-      to: [to],
-      subject: subject,
-      html: `<p>${text.replace(/\n/g, '<br>')}</p>`
-    });
-    if (error) {
-      console.error('Resend 发送失败:', error);
-      return false;
+// ======================== 邮件服务 ========================
+let transporter = null;
+async function sendMailWithRetry({ to, subject, html, text }, retries = 3) {
+  if (!transporter) return false;
+  for (let i = 0; i < retries; i++) {
+    try {
+      await transporter.sendMail({
+        from: `"心灵保险" <${process.env.SMTP_USER}>`,
+        to,
+        subject,
+        ...(html ? { html } : { text })
+      });
+      console.log(`📧 邮件发送成功: ${to}`);
+      return true;
+    } catch (error) {
+      console.error(`📧 邮件发送失败 (尝试 ${i+1}/${retries}):`, error.message);
+      if (i === retries - 1) return false;
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    console.log('邮件发送成功:', data);
-    return true;
+  }
+  return false;
+}
+async function initSMTP() {
+  try {
+    const smtpHost = process.env.SMTP_HOST || 'smtp.qq.com';
+    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
+    let addresses;
+    try { addresses = await resolve4(smtpHost); } catch(e) {}
+    const smtpIp = addresses?.[0] || smtpHost;
+    transporter = nodemailer.createTransport({
+      host: smtpIp,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 15000,
+    });
+    await transporter.verify();
+    console.log(`✅ SMTP 服务器就绪`);
   } catch (err) {
-    console.error('邮件发送异常:', err);
-    return false;
+    console.error('❌ SMTP 初始化失败，邮件功能不可用', err.message);
   }
 }
+initSMTP();
 
-// 辅助函数
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -300,11 +338,299 @@ function computeTaskStatus(task, now = Math.floor(Date.now() / 1000)) {
   return 'final';
 }
 
-// ======================== 支付成功处理（保留但支付功能已移除，实际不会被调用） ========================
+// 将数据库任务对象转换为前端期望的下划线字段格式，并计算当前状态
+function toTaskView(dbTask) {
+  const now = Math.floor(Date.now() / 1000);
+  const diffSec = now - dbTask.last_checkin;
+  const daysSince = Math.floor(diffSec / (24 * 60 * 60));
+  const cycleDays = dbTask.cycle_days;
+  const warningDays = dbTask.warning_days;
+  const finalDays = dbTask.final_days;
+  let status = 'normal';
+  if (daysSince > cycleDays) {
+    const overdue = daysSince - cycleDays;
+    if (overdue < warningDays) status = 'normal';
+    else if (overdue < warningDays + finalDays) status = 'warning';
+    else status = 'final';
+  }
+  return {
+    id: dbTask.id,
+    name: dbTask.name,
+    cycle_days: dbTask.cycle_days,
+    warning_days: dbTask.warning_days,
+    final_days: dbTask.final_days,
+    warning_email: dbTask.warning_email,
+    final_email: dbTask.final_email,
+    warning_message: dbTask.warning_message,
+    final_message: dbTask.final_message,
+    last_checkin: dbTask.last_checkin,
+    need_human_confirm: dbTask.need_human_confirm === 1,
+    contact_phone: dbTask.contact_phone,
+    status: status
+  };
+}
+
+// ======================== 微信支付（含签名验证） ========================
+let privateKey = null;
+let wechatPlatformCert = null;
+
+try {
+  privateKey = fs.readFileSync(process.env.WECHAT_PRIVATE_KEY_PATH, 'utf8');
+  console.log('✅ 微信商户私钥加载成功');
+  if (process.env.WECHAT_PLATFORM_CERT_PATH) {
+    wechatPlatformCert = fs.readFileSync(process.env.WECHAT_PLATFORM_CERT_PATH, 'utf8');
+    console.log('✅ 微信平台证书加载成功');
+  } else {
+    console.warn('⚠️ 未配置 WECHAT_PLATFORM_CERT_PATH，微信回调验签将使用简化模式（不推荐生产环境）');
+  }
+} catch (err) {
+  console.error('❌ 微信商户私钥加载失败', err.message);
+}
+
+function getNonceStr(length = 32) {
+  return crypto.randomBytes(length).toString('hex').substring(0, length);
+}
+function getTimestamp() {
+  return Math.floor(Date.now() / 1000).toString();
+}
+function signWechatPay(method, url, body, nonceStr, timestamp) {
+  const urlObj = new URL(url);
+  const pathname = urlObj.pathname + urlObj.search;
+  const message = `${method}\n${pathname}\n${timestamp}\n${nonceStr}\n${body}\n`;
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(message);
+  sign.end();
+  return sign.sign(privateKey, 'base64');
+}
+
+// 微信 Native 下单（PC 二维码）
+async function createWechatNativeOrder(outTradeNo, amount, description) {
+  if (!privateKey) throw new Error('微信私钥未加载');
+  const url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/native';
+  const body = JSON.stringify({
+    appid: process.env.WECHAT_APP_ID,
+    mchid: process.env.WECHAT_MCH_ID,
+    description,
+    out_trade_no: outTradeNo,
+    notify_url: process.env.WECHAT_NOTIFY_URL,
+    amount: { total: amount, currency: 'CNY' }
+  });
+  const nonceStr = getNonceStr();
+  const timestamp = getTimestamp();
+  const signature = signWechatPay('POST', url, body, nonceStr, timestamp);
+  const authHeader = `WECHATPAY2-SHA256-RSA2048 mchid="${process.env.WECHAT_MCH_ID}",nonce_str="${nonceStr}",timestamp="${timestamp}",serial_no="${process.env.WECHAT_SERIAL_NO}",signature="${signature}"`;
+  try {
+    const response = await axios.post(url, body, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader, 'Accept': 'application/json' }
+    });
+    return response.data.code_url;
+  } catch (err) {
+    console.error('微信Native下单失败:', err.response?.data || err.message);
+    throw new Error('微信Native下单失败');
+  }
+}
+
+// 微信 H5 下单（手机浏览器）
+async function createWechatH5Order(outTradeNo, amount, description, clientIp) {
+  if (!privateKey) throw new Error('微信私钥未加载');
+  const url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/h5';
+  const body = JSON.stringify({
+    appid: process.env.WECHAT_APP_ID,
+    mchid: process.env.WECHAT_MCH_ID,
+    description,
+    out_trade_no: outTradeNo,
+    notify_url: process.env.WECHAT_NOTIFY_URL,
+    amount: { total: amount, currency: 'CNY' },
+    scene_info: {
+      payer_client_ip: clientIp || '127.0.0.1',
+      h5_info: { type: 'Wap' }
+    }
+  });
+  const nonceStr = getNonceStr();
+  const timestamp = getTimestamp();
+  const signature = signWechatPay('POST', url, body, nonceStr, timestamp);
+  const authHeader = `WECHATPAY2-SHA256-RSA2048 mchid="${process.env.WECHAT_MCH_ID}",nonce_str="${nonceStr}",timestamp="${timestamp}",serial_no="${process.env.WECHAT_SERIAL_NO}",signature="${signature}"`;
+  try {
+    const response = await axios.post(url, body, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader, 'Accept': 'application/json' }
+    });
+    return response.data.h5_url;
+  } catch (err) {
+    console.error('微信H5下单失败:', err.response?.data || err.message);
+    throw new Error('微信H5下单失败');
+  }
+}
+
+// 微信回调验签（必须）
+function verifyWechatSignature(body, headers) {
+  if (!wechatPlatformCert && process.env.NODE_ENV === 'production') {
+    console.error('微信回调验签失败：未加载平台证书');
+    return false;
+  }
+  const wechatSignature = headers['wechatpay-signature'];
+  const wechatTimestamp = headers['wechatpay-timestamp'];
+  const wechatNonce = headers['wechatpay-nonce'];
+  const wechatSerial = headers['wechatpay-serial'];
+
+  if (!wechatSignature || !wechatTimestamp || !wechatNonce || !wechatSerial) {
+    console.error('微信回调缺少必要头');
+    return false;
+  }
+
+  const message = `${wechatTimestamp}\n${wechatNonce}\n${body}\n`;
+  try {
+    const verify = crypto.createVerify('SHA256');
+    verify.update(message);
+    verify.end();
+    const publicKey = wechatPlatformCert;
+    const result = verify.verify(publicKey, wechatSignature, 'base64');
+    if (!result) console.error('微信回调签名验证失败');
+    return result;
+  } catch (err) {
+    console.error('微信签名验证异常:', err);
+    return false;
+  }
+}
+
+function decryptWechatNotify(resource) {
+  const { ciphertext, nonce, associated_data } = resource;
+  const key = Buffer.from(process.env.WECHAT_API_V3_KEY, 'utf8');
+  const ciphertextBuffer = Buffer.from(ciphertext, 'base64');
+  const authTag = ciphertextBuffer.slice(-16);
+  const encryptedData = ciphertextBuffer.slice(0, -16);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(nonce, 'utf8'));
+  decipher.setAuthTag(authTag);
+  if (associated_data) {
+    decipher.setAAD(Buffer.from(associated_data, 'utf8'));
+  }
+  const decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+  return JSON.parse(decrypted.toString('utf8'));
+}
+
+function getClientIp(req) {
+  let ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress;
+  if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
+  return ip;
+}
+
+// ======================== 支付宝支付 ========================
+let alipaySdk = null;
+try {
+  const alipayPrivateKey = fs.readFileSync(process.env.ALIPAY_PRIVATE_KEY_PATH, 'utf8');
+  const alipayPublicKey = fs.readFileSync(process.env.ALIPAY_PUBLIC_KEY_PATH, 'utf8');
+  alipaySdk = new AlipaySdk({
+    appId: process.env.ALIPAY_APP_ID,
+    privateKey: alipayPrivateKey,
+    alipayPublicKey: alipayPublicKey,
+    signType: 'RSA2',
+    gateway: 'https://openapi.alipay.com/gateway.do',
+  });
+  console.log('✅ 支付宝 SDK 初始化成功');
+} catch (err) {
+  console.error('❌ 支付宝 SDK 初始化失败', err.message);
+}
+
+function isMobileDevice(req) {
+  const userAgent = req.headers['user-agent'] || '';
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Windows Phone|Mobile/i.test(userAgent);
+}
+
+// ======================== 支付成功处理 ========================
 async function handlePaymentSuccess(orderNo, transactionId, paidAtUnix, channel) {
-  // 此函数理论上不会被调用，因为前端不会发起支付。但保留以免数据库状态不一致。
-  console.log(`⚠️ 意外调用支付成功处理: ${orderNo}, ${channel}`);
-  return false;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const orderCheck = await client.query('SELECT status FROM payments WHERE order_no = $1 FOR UPDATE', [orderNo]);
+    if (orderCheck.rows.length === 0) throw new Error('订单不存在');
+    if (orderCheck.rows[0].status !== 'pending') {
+      console.log(`订单 ${orderNo} 已处理过，跳过`);
+      await client.query('COMMIT');
+      return true;
+    }
+
+    const orderRes = await client.query('SELECT user_email, amount, plan_type FROM payments WHERE order_no = $1', [orderNo]);
+    const { user_email, amount, plan_type } = orderRes.rows[0];
+
+    await client.query(`UPDATE payments SET status = 'paid', transaction_id = $1, paid_at = $2, updated_at = $2, payment_channel = $3 WHERE order_no = $4`, [transactionId, paidAtUnix, channel, orderNo]);
+
+    const daysToAdd = PLAN_DAYS[plan_type] || 365;
+
+    const authRes = await client.query('SELECT * FROM email_authorizations WHERE email = $1', [user_email]);
+    if (authRes.rows.length === 0) {
+      const authCode = generateCode();
+      const codeExpires = paidAtUnix + 86400;
+      const referralCode = generateReferralCode();
+      await client.query(
+        `INSERT INTO email_authorizations 
+         (email, auth_code, expires_at, authorized, created_at, status, payment_status, paid_at, referral_code, plan_type, subscription_expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [user_email, authCode, codeExpires, true, paidAtUnix, 'active', 'paid', paidAtUnix, referralCode, plan_type, paidAtUnix + daysToAdd * 86400]
+      );
+    } else {
+      const existing = authRes.rows[0];
+      const currentExpiration = existing.subscription_expires_at || paidAtUnix;
+      const baseTime = Math.max(currentExpiration, paidAtUnix);
+      const updatedExpiration = baseTime + daysToAdd * 86400;
+      await client.query(
+        `UPDATE email_authorizations 
+         SET authorized = true, payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3, status = 'active'
+         WHERE email = $4`,
+        [paidAtUnix, plan_type, updatedExpiration, user_email]
+      );
+    }
+
+    // 推荐奖励（首次购买）
+    const referrerRes = await client.query('SELECT referrer_email FROM email_authorizations WHERE email = $1', [user_email]);
+    let referrerEmail = referrerRes.rows[0]?.referrer_email;
+    if (referrerEmail && TEST_EMAIL && referrerEmail === TEST_EMAIL) {
+      console.log(`🔧 忽略测试邮箱 ${TEST_EMAIL} 的推荐奖励`);
+      referrerEmail = null;
+    }
+    const existingPaid = await client.query(
+      'SELECT id FROM payments WHERE user_email = $1 AND status = $2 AND order_no != $3 LIMIT 1',
+      [user_email, 'paid', orderNo]
+    );
+    const isFirstPurchase = existingPaid.rows.length === 0;
+    if (referrerEmail && isFirstPurchase) {
+      const rewardAmount = PLAN_REWARDS[plan_type] || 0;
+      if (rewardAmount > 0) {
+        await client.query(
+          `INSERT INTO commissions (referrer_email, user_email, amount, status, created_at, plan_type)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [referrerEmail, user_email, rewardAmount, 'pending', paidAtUnix, plan_type]
+        );
+        await client.query(
+          `UPDATE email_authorizations SET commission_balance = commission_balance + $1, total_earned = total_earned + $1 WHERE email = $2`,
+          [rewardAmount, referrerEmail]
+        );
+        const rewardYuan = (rewardAmount / 100).toFixed(2);
+        await sendMailWithRetry({
+          to: referrerEmail,
+          subject: '返利通知',
+          text: `您推荐的用户 ${user_email} 购买了 ${plan_type} 套餐，您将获得 ${rewardYuan} 元返利。`
+        });
+      }
+    } else if (referrerEmail && !isFirstPurchase) {
+      console.log(`📌 用户 ${user_email} 已是老用户，不发放推荐奖励`);
+    }
+
+    const loginCode = generateCode();
+    const codeExpires = paidAtUnix + 600;
+    await client.query(`INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)`, [user_email, loginCode, codeExpires, paidAtUnix]);
+    const amountYuan = (amount / 100).toFixed(2);
+    await sendMailWithRetry({
+      to: user_email,
+      subject: '支付成功，验证码',
+      text: `您已成功支付${amountYuan}元，购买套餐 ${plan_type}。验证码：${loginCode}，有效期10分钟。`
+    });
+
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('支付处理失败:', err);
+    return false;
+  } finally { client.release(); }
 }
 
 // ======================== API 路由 ========================
@@ -317,7 +643,6 @@ app.get('/api/config', (req, res) => {
   res.json({ plans });
 });
 
-// 查询邮箱是否有有效订阅
 app.post('/api/check-subscription', async (req, res) => {
   const { email } = req.body;
   if (!email || !validator.isEmail(email)) {
@@ -353,12 +678,160 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-// 发送登录验证码接口（无支付，仅返回 needPay 提示）
+app.post('/api/create-wechat-order', optionalAuth, async (req, res) => {
+  const { email, orderNo, plan } = req.body;
+  if (!email) return res.status(400).json({ error: '缺少邮箱参数' });
+  if (!plan || !PLAN_PRICES[plan]) return res.status(400).json({ error: '无效套餐' });
+  if (req.user && req.user.email !== email) {
+    return res.status(403).json({ error: '邮箱与登录账号不匹配' });
+  }
+  const amount = PLAN_PRICES[plan];
+  const now = Math.floor(Date.now() / 1000);
+  try {
+    let targetOrderNo = orderNo;
+    if (!targetOrderNo) {
+      targetOrderNo = generateOrderNo();
+      const expires = now + 1800;
+      await pool.query(
+        `INSERT INTO payments (order_no, user_email, amount, status, expires_at, created_at, payment_channel, plan_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [targetOrderNo, email, amount, 'pending', expires, now, 'wechat', plan]
+      );
+    } else {
+      await pool.query(`UPDATE payments SET plan_type = $1, amount = $2 WHERE order_no = $3`, [plan, amount, targetOrderNo]);
+    }
+
+    const isMobile = isMobileDevice(req);
+    if (isMobile) {
+      const clientIp = getClientIp(req);
+      const h5UrlRaw = await createWechatH5Order(targetOrderNo, amount, `心灵保险-${plan}套餐`, clientIp);
+      const returnUrl = encodeURIComponent(`${process.env.BASE_URL}/?pay_result=success&orderNo=${targetOrderNo}`);
+      const h5Url = h5UrlRaw.includes('?') ? `${h5UrlRaw}&redirect_url=${returnUrl}` : `${h5UrlRaw}?redirect_url=${returnUrl}`;
+      res.json({ orderNo: targetOrderNo, h5_url: h5Url });
+    } else {
+      const codeUrl = await createWechatNativeOrder(targetOrderNo, amount, `心灵保险-${plan}套餐`);
+      const qrBase64 = await QRCode.toDataURL(codeUrl);
+      res.json({ orderNo: targetOrderNo, qrCode: qrBase64 });
+    }
+  } catch (err) {
+    console.error('微信下单失败:', err);
+    res.status(500).json({ error: '微信下单失败' });
+  }
+});
+
+app.post('/api/create-alipay-order', optionalAuth, async (req, res) => {
+  const { email, plan } = req.body;
+  if (!email) return res.status(400).json({ error: '缺少邮箱参数' });
+  if (!plan || !PLAN_PRICES[plan]) return res.status(400).json({ error: '无效套餐' });
+  if (req.user && req.user.email !== email) {
+    return res.status(403).json({ error: '邮箱与登录账号不匹配' });
+  }
+  const amount = PLAN_PRICES[plan];
+  const now = Math.floor(Date.now() / 1000);
+  try {
+    let orderRes = await pool.query(`SELECT order_no FROM payments WHERE user_email = $1 AND status = 'pending' AND expires_at > $2 ORDER BY created_at DESC LIMIT 1`, [email, now]);
+    let orderNo;
+    if (orderRes.rows.length === 0) {
+      orderNo = generateOrderNo();
+      const expires = now + 1800;
+      await pool.query(
+        `INSERT INTO payments (order_no, user_email, amount, status, expires_at, created_at, payment_channel, plan_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [orderNo, email, amount, 'pending', expires, now, 'alipay', plan]
+      );
+    } else {
+      orderNo = orderRes.rows[0].order_no;
+      await pool.query(`UPDATE payments SET plan_type = $1, amount = $2 WHERE order_no = $3`, [plan, amount, orderNo]);
+    }
+    const returnUrl = `${process.env.BASE_URL}/?pay_result=success&orderNo=${orderNo}`;
+    const notifyUrl = process.env.ALIPAY_NOTIFY_URL;
+    const isMobile = isMobileDevice(req);
+    
+    const formData = new AlipayFormData();
+    formData.setMethod('get');
+    const method = isMobile ? 'alipay.trade.wap.pay' : 'alipay.trade.page.pay';
+    const productCode = isMobile ? 'QUICK_WAP_PAY' : 'FAST_INSTANT_TRADE_PAY';
+    formData.addField('bizContent', {
+      out_trade_no: orderNo,
+      product_code: productCode,
+      total_amount: (amount / 100).toFixed(2),
+      subject: `心灵保险-${plan}套餐`,
+    });
+    formData.addField('return_url', returnUrl);
+    formData.addField('notify_url', notifyUrl);
+    
+    const payUrl = await alipaySdk.exec(method, {}, { formData });
+    res.json({ payUrl });
+  } catch (err) {
+    console.error('支付宝下单失败:', err);
+    res.status(500).json({ error: '支付宝下单失败' });
+  }
+});
+
+app.post('/api/pay/alipay/notify', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const params = req.body;
+    const verify = await alipaySdk.checkNotifySign(params);
+    if (!verify) {
+      console.error('支付宝回调验签失败');
+      return res.status(400).send('fail');
+    }
+    if (params.trade_status === 'TRADE_SUCCESS' || params.trade_status === 'TRADE_FINISHED') {
+      const outTradeNo = params.out_trade_no;
+      const transactionId = params.trade_no;
+      const paidAt = Math.floor(Date.parse(params.gmt_payment) / 1000);
+      await handlePaymentSuccess(outTradeNo, transactionId, paidAt, 'alipay');
+    }
+    res.send('success');
+  } catch (err) {
+    console.error('支付宝回调处理失败:', err);
+    res.status(500).send('fail');
+  }
+});
+
+app.post('/api/pay/wechat/notify', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const rawBody = req.body.toString('utf8');
+    const isValid = verifyWechatSignature(rawBody, req.headers);
+    if (!isValid && process.env.NODE_ENV === 'production') {
+      console.error('微信回调签名验证失败');
+      return res.status(403).send('fail');
+    }
+    const { resource } = JSON.parse(rawBody);
+    if (!resource) throw new Error('无效回调');
+    const decrypted = decryptWechatNotify(resource);
+    const { out_trade_no, transaction_id, success_time } = decrypted;
+    const paidAt = Math.floor(Date.parse(success_time) / 1000);
+    await handlePaymentSuccess(out_trade_no, transaction_id, paidAt, 'wechat');
+    res.status(200).json({ code: 'SUCCESS' });
+  } catch (err) {
+    console.error('微信回调处理失败:', err);
+    res.status(500).json({ code: 'FAIL' });
+  }
+});
+
+app.get('/api/pay/status/:orderNo', async (req, res) => {
+  const result = await pool.query('SELECT status FROM payments WHERE order_no = $1', [req.params.orderNo]);
+  if (result.rows.length === 0) return res.status(404).json({ error: '订单不存在' });
+  res.json({ status: result.rows[0].status });
+});
+
+app.get('/api/pay/order/:orderNo', async (req, res) => {
+  const { orderNo } = req.params;
+  try {
+    const result = await pool.query('SELECT user_email FROM payments WHERE order_no = $1', [orderNo]);
+    if (result.rows.length === 0) return res.status(404).json({ error: '订单不存在' });
+    res.json({ user_email: result.rows[0].user_email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================== 发送登录验证码接口 ========================
 app.post('/api/send-login-code', optionalAuth, async (req, res) => {
   const { email, ref, plan } = req.body;
   if (!email) return res.status(400).json({ error: '缺少邮箱参数' });
 
-  // 检查是否已有有效订阅
   const authCheck = await pool.query(
     'SELECT payment_status, subscription_expires_at FROM email_authorizations WHERE email = $1',
     [email]
@@ -370,7 +843,6 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     if (exp && exp > now) hasActiveSubscription = true;
   }
 
-  // 已有有效订阅：直接发送动态验证码
   if (hasActiveSubscription) {
     const code = generateCode();
     const expires = now + 600;
@@ -378,10 +850,10 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
       'INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)',
       [email, code, expires, now]
     );
-    const sent = await sendEmail({
+    const sent = await sendMailWithRetry({
       to: email,
-      subject: 'Login Verification Code',
-      text: `Your verification code is: ${code}\nValid for 10 minutes.`
+      subject: '登录验证码',
+      text: `您的验证码是：${code}，有效期10分钟。`
     });
     if (sent) {
       res.json({ success: true, alreadyPaid: true });
@@ -391,21 +863,49 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     return;
   }
 
-  // 无有效订阅：前端需要提示支付不可用，不再创建订单
-  // 但为了前端能正确弹出提示，返回 needPay: true
-  // 同时为了兼容原来的逻辑，也创建一条 email_authorizations 记录（用于可能的线下授权）
   if (!plan || !PLAN_PRICES[plan]) {
     return res.status(400).json({ error: '请选择套餐' });
   }
 
-  // 处理推荐码
   let referrerEmail = null;
   if (ref) {
     const refRes = await pool.query('SELECT email FROM email_authorizations WHERE referral_code = $1', [ref]);
     if (refRes.rows.length > 0) referrerEmail = refRes.rows[0].email;
   }
 
-  // 创建 email_authorizations 记录（如果不存在），用于线下付款授权
+  let orderRes = await pool.query(
+    `SELECT order_no FROM payments WHERE user_email = $1 AND status = 'pending' AND expires_at > $2 ORDER BY created_at DESC LIMIT 1`,
+    [email, now]
+  );
+  let orderNo;
+  if (orderRes.rows.length === 0) {
+    orderNo = generateOrderNo();
+    const expires = now + 1800;
+    await pool.query(
+      `INSERT INTO payments (order_no, user_email, amount, status, expires_at, created_at, payment_channel, plan_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [orderNo, email, PLAN_PRICES[plan], 'pending', expires, now, null, plan]
+    );
+  } else {
+    orderNo = orderRes.rows[0].order_no;
+    await pool.query(`UPDATE payments SET plan_type = $1, amount = $2 WHERE order_no = $3`, [plan, PLAN_PRICES[plan], orderNo]);
+  }
+
+  const loginCode = generateCode();
+  const codeExpires = now + 600;
+  await pool.query(
+    `INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)`,
+    [email, loginCode, codeExpires, now]
+  );
+  const sent = await sendMailWithRetry({
+    to: email,
+    subject: '登录验证码',
+    text: `您的验证码是：${loginCode}，有效期10分钟。`
+  });
+  if (!sent) {
+    return res.status(500).json({ error: '邮件发送失败' });
+  }
+
   const existAuth = await pool.query('SELECT email FROM email_authorizations WHERE email = $1', [email]);
   if (existAuth.rows.length === 0) {
     const authCode = generateCode();
@@ -420,7 +920,6 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     await pool.query(`UPDATE email_authorizations SET referrer_email = COALESCE(referrer_email, $1) WHERE email = $2`, [referrerEmail, email]);
   }
 
-  // 返回需要支付的标志（前端会弹出提示）
   res.json({ success: true, needPay: true });
 });
 
@@ -453,7 +952,6 @@ app.post('/api/verify-login-code',
     }
 
     try {
-      // 先查询动态验证码
       const codeRes = await pool.query('SELECT code, expires_at FROM email_verification_codes WHERE email = $1 AND code = $2', [email, code]);
       if (codeRes.rows.length > 0 && codeRes.rows[0].expires_at > now) {
         await pool.query('DELETE FROM email_verification_codes WHERE email = $1 AND code = $2', [email, code]);
@@ -470,7 +968,6 @@ app.post('/api/verify-login-code',
         return res.json({ success: true });
       }
 
-      // 再查授权码
       const authRes = await pool.query('SELECT auth_code, expires_at, authorized, payment_status, subscription_expires_at FROM email_authorizations WHERE email = $1', [email]);
       if (authRes.rows.length === 0) return res.status(400).json({ error: '无效验证码' });
       const record = authRes.rows[0];
@@ -501,7 +998,7 @@ app.get('/api/user/profile', authenticateJWT, async (req, res) => {
   const email = req.user.email;
   const now = Math.floor(Date.now() / 1000);
   try {
-    const result = await pool.query('SELECT email, referral_code, commission_balance, total_earned, plan_type, subscription_expires_at FROM email_authorizations WHERE email = $1', [email]);
+    const result = await pool.query('SELECT email, referral_code, commission_balance, total_earned, plan_type, subscription_expires_at, payment_account, payment_account_type FROM email_authorizations WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(404).json({ error: '用户不存在' });
     const user = result.rows[0];
     let referralLink = '';
@@ -522,8 +1019,24 @@ app.get('/api/user/profile', authenticateJWT, async (req, res) => {
       total_earned: user.total_earned || 0,
       plan_type: user.plan_type || 'none',
       subscription_expires_at: user.subscription_expires_at,
-      days_left: daysLeft
+      days_left: daysLeft,
+      payment_account: user.payment_account || '',
+      payment_account_type: user.payment_account_type || '微信'
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/user/update-payment-account', authenticateJWT, async (req, res) => {
+  const email = req.user.email;
+  const { payment_account_type, payment_account } = req.body;
+  if (!payment_account || payment_account.trim() === '') {
+    return res.status(400).json({ error: '收款账号不能为空' });
+  }
+  try {
+    await pool.query('UPDATE email_authorizations SET payment_account = $1, payment_account_type = $2 WHERE email = $3', [payment_account.trim(), payment_account_type || '微信', email]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -539,7 +1052,6 @@ app.get('/api/user/commissions', authenticateJWT, async (req, res) => {
   }
 });
 
-// ======================== 通知系统（用户端） ========================
 app.get('/api/user/notices', authenticateJWT, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -551,7 +1063,7 @@ app.get('/api/user/notices', authenticateJWT, async (req, res) => {
   }
 });
 
-// ======================== 任务管理 ========================
+// ======================== 任务管理（含后端校验） ========================
 app.get('/api/tasks', authenticateJWT, async (req, res) => {
   const email = req.user.email;
   try {
@@ -564,26 +1076,7 @@ app.get('/api/tasks', authenticateJWT, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const now = Math.floor(Date.now() / 1000);
-    const tasks = rows.map(task => {
-      const camelTask = {
-        id: task.id,
-        name: task.name,
-        cycleDays: task.cycle_days,
-        warningDays: task.warning_days,
-        finalDays: task.final_days,
-        warningEmail: task.warning_email,
-        finalEmail: task.final_email,
-        warningMessage: task.warning_message,
-        finalMessage: task.final_message,
-        lastCheckin: task.last_checkin,
-        contactPhone: task.contact_phone,
-        need_human_confirm: task.need_human_confirm === 1,
-        needHumanConfirm: task.need_human_confirm
-      };
-      camelTask.status = computeTaskStatus(camelTask, now);
-      return camelTask;
-    });
+    const tasks = rows.map(dbTask => toTaskView(dbTask));
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -605,25 +1098,8 @@ app.get('/api/tasks/:id', authenticateJWT, param('id').notEmpty(), async (req, r
       [id, email]
     );
     if (rows.length === 0) return res.status(404).json({ error: '任务不存在' });
-    const task = rows[0];
-    const now = Math.floor(Date.now() / 1000);
-    const camelTask = {
-      id: task.id,
-      name: task.name,
-      cycleDays: task.cycle_days,
-      warningDays: task.warning_days,
-      finalDays: task.final_days,
-      warningEmail: task.warning_email,
-      finalEmail: task.final_email,
-      warningMessage: task.warning_message,
-      finalMessage: task.final_message,
-      lastCheckin: task.last_checkin,
-      contactPhone: task.contact_phone,
-      need_human_confirm: task.need_human_confirm === 1,
-      needHumanConfirm: task.need_human_confirm
-    };
-    camelTask.status = computeTaskStatus(camelTask, now);
-    res.json(camelTask);
+    const taskView = toTaskView(rows[0]);
+    res.json(taskView);
   } catch (err) {
     res.status(500).json({ error: '获取任务失败' });
   }
@@ -706,6 +1182,22 @@ app.put('/api/tasks/:id',
     const { id } = req.params;
     const email = req.user.email;
     const updates = req.body;
+    if (updates.warning_days !== undefined && updates.final_days !== undefined) {
+      if (updates.final_days <= updates.warning_days) {
+        return res.status(400).json({ error: '终止天数必须大于警告天数' });
+      }
+    } else if (updates.final_days !== undefined) {
+      const existing = await pool.query('SELECT "warningDays" FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
+      if (existing.rows.length && existing.rows[0].warningDays >= updates.final_days) {
+        return res.status(400).json({ error: '终止天数必须大于警告天数' });
+      }
+    } else if (updates.warning_days !== undefined) {
+      const existing = await pool.query('SELECT "finalDays" FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
+      if (existing.rows.length && updates.warning_days >= existing.rows[0].finalDays) {
+        return res.status(400).json({ error: '终止天数必须大于警告天数' });
+      }
+    }
+
     const setParts = [];
     const values = [];
     let idx = 1;
@@ -777,26 +1269,7 @@ app.post('/api/auto-checkin', authenticateJWT, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const nowTs = Math.floor(Date.now() / 1000);
-    const tasks = rows.map(task => {
-      const camelTask = {
-        id: task.id,
-        name: task.name,
-        cycleDays: task.cycle_days,
-        warningDays: task.warning_days,
-        finalDays: task.final_days,
-        warningEmail: task.warning_email,
-        finalEmail: task.final_email,
-        warningMessage: task.warning_message,
-        finalMessage: task.final_message,
-        lastCheckin: task.last_checkin,
-        contactPhone: task.contact_phone,
-        need_human_confirm: task.need_human_confirm === 1,
-        needHumanConfirm: task.need_human_confirm
-      };
-      camelTask.status = computeTaskStatus(camelTask, nowTs);
-      return camelTask;
-    });
+    const tasks = rows.map(dbTask => toTaskView(dbTask));
     res.json({ success: true, count: rows.length, tasks });
   } catch (err) {
     console.error(err);
@@ -804,7 +1277,7 @@ app.post('/api/auto-checkin', authenticateJWT, async (req, res) => {
   }
 });
 
-// ======================== 管理员后台接口（保留所有管理员功能） ========================
+// ======================== 管理员后台接口 ========================
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
@@ -916,7 +1389,7 @@ app.post('/api/customer/send-final/:taskId', verifyAdminToken, async (req, res) 
     }
     const baseText = task.finalMessage || '您已连续多日未打卡，任务已终止。';
     const mailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-    const success = await sendEmail({
+    const success = await sendMailWithRetry({
       to: task.finalEmail,
       subject: '【心灵保险】任务终止通知',
       text: mailText
@@ -950,7 +1423,7 @@ app.get('/api/admin/pending-auths', verifyAdminToken, async (req, res) => {
 app.get('/api/admin/manage-emails', verifyAdminToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT email, auth_code, authorized, status, created_at, payment_status, paid_at, referrer_email, commission_balance, total_earned, plan_type, subscription_expires_at
+      `SELECT email, auth_code, authorized, status, created_at, payment_status, paid_at, referrer_email, commission_balance, total_earned, plan_type, subscription_expires_at, payment_account, payment_account_type
        FROM email_authorizations 
        ORDER BY created_at DESC`
     );
@@ -962,7 +1435,13 @@ app.get('/api/admin/manage-emails', verifyAdminToken, async (req, res) => {
 
 app.get('/api/admin/commissions', verifyAdminToken, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM commissions ORDER BY created_at DESC');
+    const { rows } = await pool.query(`
+      SELECT c.id, c.referrer_email, c.user_email, c.amount, c.status, c.created_at, c.paid_at, c.plan_type,
+             e.payment_account, e.payment_account_type
+      FROM commissions c
+      LEFT JOIN email_authorizations e ON c.referrer_email = e.email
+      ORDER BY c.created_at DESC
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -982,24 +1461,7 @@ app.get('/admin-api/tasks', verifyAdminToken, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const now = Math.floor(Date.now() / 1000);
-    const tasks = rows.map(task => {
-      const camelTask = {
-        ...task,
-        cycleDays: task.cycle_days,
-        warningDays: task.warning_days,
-        finalDays: task.final_days,
-        lastCheckin: task.last_checkin,
-        warningEmail: task.warning_email,
-        finalEmail: task.final_email,
-        warningMessage: task.warning_message,
-        finalMessage: task.final_message,
-        contactPhone: task.contact_phone,
-        needHumanConfirm: task.need_human_confirm === 1
-      };
-      camelTask.status = computeTaskStatus(camelTask, now);
-      return camelTask;
-    });
+    const tasks = rows.map(dbTask => toTaskView(dbTask));
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -1021,11 +1483,11 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
     const wasPaid = before.rows[0]?.payment_status === 'paid';
 
     const result = await pool.query(
-  `UPDATE email_authorizations 
-   SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3
-   WHERE email = $4 AND payment_status = 'unpaid'`,
-  [now, plan, newExpiration, email]
-);
+      `UPDATE email_authorizations 
+       SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3, authorized = true
+       WHERE email = $4 AND payment_status = 'unpaid'`,
+      [now, plan, newExpiration, email]
+    );
     if (result.rowCount === 0) {
       return res.status(404).json({ error: '未找到待确认付款的邮箱或已付款' });
     }
@@ -1048,7 +1510,7 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
             [rewardAmount, referrerEmail]
           );
           const rewardYuan = (rewardAmount / 100).toFixed(2);
-          await sendEmail({
+          await sendMailWithRetry({
             to: referrerEmail,
             subject: '【心灵保险】您推荐的用户已付款，返利待发放',
             text: `您推荐的用户 ${email} 购买了 ${plan} 套餐，您将获得 ${rewardYuan} 元返利。请等待管理员线下转账。`
@@ -1080,7 +1542,7 @@ app.post('/api/admin/send-auth-code', verifyAdminToken, async (req, res) => {
     return res.status(404).json({ error: '无有效的待授权记录' });
   }
   const authCode = result.rows[0].auth_code;
-  const success = await sendEmail({
+  const success = await sendMailWithRetry({
     to: email,
     subject: '【心灵保险】您的邮箱授权码',
     text: `您的邮箱授权码是：${authCode}，有效期24小时。`
@@ -1146,6 +1608,7 @@ app.post('/api/admin/delete-email', verifyAdminToken, requireSuperAdmin, async (
     await client.query('DELETE FROM commissions WHERE referrer_email = $1 OR user_email = $1', [email]);
     await client.query('DELETE FROM tasks WHERE user_email = $1', [email]);
     await client.query('DELETE FROM payments WHERE user_email = $1', [email]);
+    await client.query('DELETE FROM email_verification_codes WHERE email = $1', [email]);
     await client.query('DELETE FROM email_authorizations WHERE email = $1', [email]);
     await client.query('COMMIT');
     res.json({ success: true });
@@ -1213,7 +1676,7 @@ async function checkTask(task) {
   const overdueDays = daysSince - cycleDays;
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
-      const success = await sendEmail({
+      const success = await sendMailWithRetry({
         to: task.warningEmail,
         subject: '【心灵保险】打卡警告',
         text: task.warningMessage || `您已连续 ${overdueDays} 天未打卡，请及时打卡。`
@@ -1231,7 +1694,7 @@ async function checkTask(task) {
         const contactPhone = task.contactPhone || '未提供';
         const confirmLink = `${process.env.BASE_URL}/admin.html?token=${process.env.CUSTOMER_TOKEN || ''}`;
         const mailText = `任务 "${task.name}" 已到达终止条件，需要人工确认。\n- 用户邮箱：${task.user_email}\n- 监督人邮箱：${task.finalEmail}\n- 联系电话：${contactPhone}\n- 最后打卡：${new Date(task.lastCheckin * 1000).toLocaleString()}\n请登录客服界面处理：${confirmLink}`;
-        const success = await sendEmail({
+        const success = await sendMailWithRetry({
           to: customerEmail,
           subject: '【心灵保险】客服人工确认提醒',
           text: mailText
@@ -1244,7 +1707,7 @@ async function checkTask(task) {
       if (!task.finalSent) {
         const baseText = task.finalMessage || `您已连续 ${overdueDays} 天未打卡，任务已终止。`;
         const finalMailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-        const success = await sendEmail({
+        const success = await sendMailWithRetry({
           to: task.finalEmail,
           subject: '【心灵保险】任务终止通知',
           text: finalMailText
