@@ -97,7 +97,6 @@
         .commission-balance { font-size:1rem; font-weight:600; margin:4px 0; }
         .plan-select-label { text-align:left; font-size:0.7rem; color:#495057; margin-bottom:4px; font-weight:500; }
 
-        /* subscription row two-column layout */
         .subscription-row {
             display: flex;
             gap: 12px;
@@ -220,7 +219,7 @@
             </div>
             
             <h3>Reward Balance</h3>
-            <div id="commissionBalance" class="commission-balance">0 CNY</div>
+            <div id="commissionBalance" class="commission-balance">0 USD</div>
             <div id="subscriptionInfo" class="expiry-warning"></div>
             <div id="renewBtnContainer" style="margin:6px 0;"></div>
             <h3>Reward Records</h3>
@@ -266,34 +265,31 @@
         </div>
     </div>
 
-    <!-- Payment method modal -->
+    <!-- Payment method modal (disabled) -->
     <div id="methodModal" class="modal-overlay hidden">
         <div class="modal-card" style="text-align:center;">
-            <h3>Select Payment Method</h3>
+            <h3>Online Payment Unavailable</h3>
             <div id="modalPlanInfo" style="margin:10px 0; font-size:0.85rem;"></div>
-            <button id="chooseWechatBtn" class="pay-method-btn pay-method-wechat">WeChat Pay</button>
-            <button id="chooseAlipayBtn" class="pay-method-btn pay-method-alipay">Alipay</button>
-            <button id="closeMethodModalBtn" class="secondary" style="margin-top:10px;">Cancel</button>
+            <p style="color:#d9534f;">Sorry, online payment is currently not available in your area. Please contact the administrator or recommender.</p>
+            <button id="closeMethodModalBtn" class="secondary" style="margin-top:10px;">Close</button>
         </div>
     </div>
 
-    <!-- WeChat QR code modal -->
+    <!-- WeChat QR code modal (disabled) -->
     <div id="payModal" class="modal-overlay hidden">
         <div class="modal-card" style="text-align:center;">
-            <h3>Scan to Pay</h3>
-            <p>Scan with WeChat to complete payment</p>
-            <div id="qrCodeContainer" style="margin:10px 0;"></div>
-            <p id="payStatusMsg" style="font-size:0.75rem;">Waiting for payment...</p>
-            <button id="closePayModalBtn" class="secondary">Cancel</button>
+            <h3>Payment Disabled</h3>
+            <p>Online payment is not available. Please contact support.</p>
+            <button id="closePayModalBtn" class="secondary">Close</button>
         </div>
     </div>
 
-    <!-- Plan selection modal -->
+    <!-- Plan selection modal (disabled payment) -->
     <div id="planSelectModal" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>Choose a Plan</h3>
             <div id="planSelectorModal" class="plan-selector" style="display:flex; margin:12px 0;"></div>
-            <button id="confirmPlanBtn" class="primary" style="width:100%;">Confirm</button>
+            <button id="confirmPlanBtn" class="primary" style="width:100%;">Confirm & Continue</button>
             <button id="cancelPlanBtn" class="secondary" style="margin-top:8px; width:100%;">Cancel</button>
         </div>
     </div>
@@ -377,8 +373,8 @@
             return plansData;
         }catch(e){ return []; }
     }
-    function priceInYuan(priceFen) {
-        return Math.floor(priceFen / 100);
+    function priceInUSD(priceFen) {
+        return (priceFen / 100).toFixed(2);
     }
     function getPlanDisplayName(planId) {
         if(planId === '1y') return '1 Year';
@@ -391,8 +387,7 @@
         if(!container||!plansData.length) return;
         container.innerHTML = plansData.map(p=>{
             const displayName = getPlanDisplayName(p.id);
-            const yuan = priceInYuan(p.price);
-            const priceText = `${yuan} CNY / ${displayName}`;
+            const priceText = `${priceInUSD(p.price)} USD / ${displayName}`;
             return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
         }).join('');
         container.style.display='flex';
@@ -402,20 +397,20 @@
                 el.classList.add('selected');
                 pendingPlan = el.getAttribute('data-plan');
                 const selected = plansData.find(p=>p.id===pendingPlan);
-                if(selected) document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(selected.id)} ${priceInYuan(selected.price)} CNY<br>Referral reward: ${priceInYuan(selected.reward)} CNY`;
+                if(selected) document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(selected.id)} ${priceInUSD(selected.price)} USD<br>Referral reward: ${priceInUSD(selected.reward)} USD`;
             });
         });
         if(!pendingPlan && plansData[0]){
             pendingPlan = plansData[0].id;
             document.querySelector('#planSelector .plan-option')?.classList.add('selected');
-            document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(plansData[0].id)} ${priceInYuan(plansData[0].price)} CNY<br>Referral reward: ${priceInYuan(plansData[0].reward)} CNY`;
+            document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(plansData[0].id)} ${priceInUSD(plansData[0].price)} USD<br>Referral reward: ${priceInUSD(plansData[0].reward)} USD`;
         }
     }
     function showPlanSelectModal(callback){
         const modal = document.getElementById('planSelectModal');
         const container = document.getElementById('planSelectorModal');
         if(!container||!plansData.length) return;
-        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${priceInYuan(p.price)} CNY</div><div class="plan-name" style="display:none;">${getPlanDisplayName(p.id)}</div><div class="plan-reward" style="display:none;">Reward ${priceInYuan(p.reward)} CNY</div></div>`).join('');
+        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${priceInUSD(p.price)} USD</div><div class="plan-name" style="display:none;">${getPlanDisplayName(p.id)}</div><div class="plan-reward" style="display:none;">Reward ${priceInUSD(p.reward)} USD</div></div>`).join('');
         let selectedPlan = plansData[0].id;
         container.querySelectorAll('.plan-option').forEach(el=>{
             el.addEventListener('click',()=>{
@@ -427,49 +422,21 @@
         container.querySelector('.plan-option')?.classList.add('selected');
         modal.classList.remove('hidden');
         const confirmBtn = document.getElementById('confirmPlanBtn'), cancelBtn = document.getElementById('cancelPlanBtn');
-        const handler = ()=>{ modal.classList.add('hidden'); if(callback) callback(selectedPlan); confirmBtn.removeEventListener('click',handler); cancelBtn.removeEventListener('click',cancelHandler); };
+        const handler = ()=>{ 
+            modal.classList.add('hidden'); 
+            if(callback) callback(selectedPlan);
+            confirmBtn.removeEventListener('click',handler);
+            cancelBtn.removeEventListener('click',cancelHandler);
+        };
         const cancelHandler = ()=>{ modal.classList.add('hidden'); confirmBtn.removeEventListener('click',handler); cancelBtn.removeEventListener('click',cancelHandler); };
         confirmBtn.addEventListener('click',handler);
         cancelBtn.addEventListener('click',cancelHandler);
     }
 
-    async function createWechatOrder(email, orderNo){
-        if(!pendingPlan){ showToast('Please select a plan',true); return; }
-        try{
-            const res = await fetch('/api/create-wechat-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,orderNo,plan:pendingPlan})});
-            const data = await res.json();
-            if(res.ok){
-                if(data.h5_url) window.location.href = data.h5_url;
-                else if(data.qrCode) showPayModal(data.qrCode, data.orderNo, email);
-                else showToast('WeChat order error',true);
-            } else showToast(data.error||'WeChat order failed',true);
-        }catch(e){ showToast('Network error, please try again later',true); }
-    }
-    async function createAlipayOrder(email){
-        if(!pendingPlan){ showToast('Please select a plan',true); return; }
-        try{
-            const res = await fetch('/api/create-alipay-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan:pendingPlan})});
-            const data = await res.json();
-            if(res.ok && data.payUrl){
-                window.location.href = data.payUrl;
-            } else showToast(data.error||'Alipay order failed',true);
-        }catch(e){ showToast('Network error, please try again later',true); }
-    }
-    function showPayModal(qrBase64, orderNo, email){
-        const modal = document.getElementById('payModal');
-        document.getElementById('qrCodeContainer').innerHTML = `<img src="${qrBase64}" style="width:180px; max-width:80%;">`;
-        modal.classList.remove('hidden');
-        if(payInterval) clearInterval(payInterval);
-        if(payTimeout) clearTimeout(payTimeout);
-        payTimeout = setTimeout(()=>{ if(payInterval) clearInterval(payInterval); document.getElementById('payStatusMsg').innerText='Payment timeout. If you have paid, please click "Get Code" again.'; showToast('If paid, please request code again'); },5*60*1000);
-        payInterval = setInterval(async()=>{
-            try{
-                const res = await fetch(`/api/pay/status/${orderNo}`);
-                const data = await res.json();
-                if(data.status==='paid'){ clearInterval(payInterval); clearTimeout(payTimeout); document.getElementById('payStatusMsg').innerText='Payment successful!'; showToast('Payment successful, verification code sent to your email'); setTimeout(()=>modal.classList.add('hidden'),1500); }
-                else if(data.status==='expired'){ clearInterval(payInterval); clearTimeout(payTimeout); document.getElementById('payStatusMsg').innerText='Order expired'; setTimeout(()=>modal.classList.add('hidden'),2000); }
-            }catch(e){}
-        },3000);
+    // Payment disabled functions - show message instead of calling APIs
+    function showPaymentDisabledMessage() {
+        showToast('Online payment is currently not available in your area. Please contact the administrator or recommender.', true);
+        document.getElementById('methodModal').classList.remove('hidden');
     }
 
     // Login page interactions
@@ -508,14 +475,13 @@
             const res = await fetch('/api/send-login-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan,ref:refParam})});
             const data = await res.json();
             if(res.status===402){
-                pendingEmail = email;
-                document.getElementById('methodModal').classList.remove('hidden');
+                // Payment disabled
+                showPaymentDisabledMessage();
             } else if(res.ok){
                 showToast('Verification code sent');
                 if(data.alreadyPaid) showToast('Code sent to your email');
                 else if(data.needPay){
-                    pendingEmail = email;
-                    document.getElementById('methodModal').classList.remove('hidden');
+                    showPaymentDisabledMessage();
                 }
             } else showToast(data.error||'Failed to send code',true);
         } catch(e){ showToast('Network error, please try again later',true); }
@@ -545,7 +511,7 @@
                         showPlanSelectModal((selectedPlan)=>{
                             pendingPlan=selectedPlan;
                             pendingEmail=email;
-                            document.getElementById('methodModal').classList.remove('hidden');
+                            showPaymentDisabledMessage();
                         });
                     }
                 } else showToast(data.error||'Verification failed',true);
@@ -621,12 +587,11 @@
             if(!res) return;
             const data = await res.json();
             document.getElementById('referralLinkText').innerText = data.referral_link || 'Test account cannot generate referral link';
-            document.getElementById('commissionBalance').innerText = (data.commission_balance/100).toFixed(2) + ' CNY';
+            document.getElementById('commissionBalance').innerText = (data.commission_balance/100).toFixed(2) + ' USD';
 
             const subDiv = document.getElementById('subscriptionInfo');
             const renewContainer = document.getElementById('renewBtnContainer');
             
-            // Create wrapper container (only once)
             let rowContainer = document.getElementById('subscriptionRow');
             if (!rowContainer) {
                 rowContainer = document.createElement('div');
@@ -647,7 +612,7 @@
                     showPlanSelectModal((selectedPlan) => { 
                         pendingPlan = selectedPlan; 
                         pendingEmail = currentUser.email; 
-                        document.getElementById('methodModal').classList.remove('hidden'); 
+                        showPaymentDisabledMessage();
                     });
                 });
             } else if (data.days_left === 0 && data.subscription_expires_at) {
@@ -657,7 +622,7 @@
                     showPlanSelectModal((selectedPlan) => { 
                         pendingPlan = selectedPlan; 
                         pendingEmail = currentUser.email; 
-                        document.getElementById('methodModal').classList.remove('hidden'); 
+                        showPaymentDisabledMessage();
                     });
                 });
             } else {
@@ -691,11 +656,11 @@
         if(!allCommissions.length){ container.innerHTML='<p>No reward records</p>'; toggleBtn.style.display='none'; return; }
         const displayCount = expanded ? allCommissions.length : Math.min(3,allCommissions.length);
         const shown = allCommissions.slice(0,displayCount);
-        let html = '<table class="commission-table"><thead><tr><th>Referred User</th><th>Amount (CNY)</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+        let html = '<table class="commission-table"><thead><tr><th>Referred User</th><th>Amount (USD)</th><th>Status</th><th>Time</th></tr></thead><tbody>';
         for(let c of shown){
             let statusText = c.status==='pending'?'Pending':'Paid';
-            let amountYuan = (c.amount/100).toFixed(2);
-            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
+            let amountUSD = (c.amount/100).toFixed(2);
+            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountUSD}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
         }
         html+='</tbody></table>';
         container.innerHTML = html;
@@ -706,7 +671,7 @@
         } else toggleBtn.style.display='none';
     }
 
-    // Task management
+    // Task management (unchanged)
     async function renderTaskList(){
         try{
             const res = await apiFetch('/api/tasks');
@@ -897,27 +862,13 @@
     document.getElementById('showPrivacyLink').addEventListener('click',(e)=>{ e.preventDefault(); document.getElementById('privacyModal').classList.remove('hidden'); });
     document.getElementById('showTermsLink').addEventListener('click',(e)=>{ e.preventDefault(); document.getElementById('termsModal').classList.remove('hidden'); });
 
-    document.getElementById('chooseWechatBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); if(pendingEmail) createWechatOrder(pendingEmail, ''); });
-    document.getElementById('chooseAlipayBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); if(pendingEmail) createAlipayOrder(pendingEmail); });
+    document.getElementById('chooseWechatBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); showPaymentDisabledMessage(); });
+    document.getElementById('chooseAlipayBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); showPaymentDisabledMessage(); });
     document.getElementById('closeMethodModalBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); pendingEmail=null; });
     document.getElementById('closePayModalBtn').addEventListener('click',()=>{ if(payInterval) clearInterval(payInterval); if(payTimeout) clearTimeout(payTimeout); document.getElementById('payModal').classList.add('hidden'); });
 
     async function handleAlipayReturn(){
-        const urlParams = new URLSearchParams(window.location.search);
-        const payResult = urlParams.get('pay_result'), orderNo = urlParams.get('orderNo');
-        if(payResult === 'success' && orderNo){
-            window.history.replaceState({}, document.title, window.location.pathname);
-            showToast('Payment successful, confirming order...');
-            for(let i=0;i<15;i++){
-                try{
-                    const res = await fetch(`/api/pay/status/${orderNo}`);
-                    const data = await res.json();
-                    if(data.status === 'paid') break;
-                    if(data.status === 'expired') break;
-                }catch(e){}
-                await new Promise(r=>setTimeout(r,2000));
-            }
-        }
+        // No-op because payment is disabled
     }
 
     loadPlans().then(()=>{
@@ -942,7 +893,6 @@
             document.getElementById('splashPage').classList.remove('hidden');
         }
         handleAlipayReturn();
-        // English privacy & terms (short version, can be expanded)
         document.getElementById('privacyContent').innerHTML = '<p><strong>Privacy Policy</strong></p><p>We value your privacy...</p>';
         document.getElementById('termsContent').innerHTML = '<p><strong>Terms of Service</strong></p><p>By using this service you agree to our terms...</p>';
     });
