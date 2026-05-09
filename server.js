@@ -1,27 +1,22 @@
-// server.js (去除微信/支付宝支付，保留任务和管理接口，显示USD单位，新注册/续费直接禁用支付)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
-const dns = require('dns');
-const { promisify } = require('util');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { body, validationResult, param } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const validator = require('validator');
+const { Resend } = require('resend');
 
-const resolve4 = promisify(dns.resolve4);
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ======================== 套餐及奖励配置 (价格单位为分，展示时转为USD) ========================
+// ======================== 套餐及奖励配置 ========================
 const PLAN_PRICES = {
   '1y': parseInt(process.env.PRICE_1Y) || 9900,
   '2y': parseInt(process.env.PRICE_2Y) || 18800,
@@ -114,14 +109,9 @@ async function initDB() {
         commission_balance INTEGER DEFAULT 0,
         total_earned INTEGER DEFAULT 0,
         plan_type VARCHAR(10),
-        subscription_expires_at BIGINT,
-        payment_account TEXT,
-        payment_account_type TEXT
+        subscription_expires_at BIGINT
       );
     `);
-    await client.query(`ALTER TABLE email_authorizations ADD COLUMN IF NOT EXISTS payment_account TEXT;`);
-    await client.query(`ALTER TABLE email_authorizations ADD COLUMN IF NOT EXISTS payment_account_type TEXT;`);
-
     await client.query(`
       CREATE TABLE IF NOT EXISTS email_verification_codes (
         email TEXT NOT NULL,
@@ -236,54 +226,30 @@ function requireSuperAdmin(req, res, next) {
   next();
 }
 
-// ======================== 邮件服务 ========================
-let transporter = null;
-async function sendMailWithRetry({ to, subject, html, text }, retries = 3) {
-  if (!transporter) return false;
-  for (let i = 0; i < retries; i++) {
-    try {
-      await transporter.sendMail({
-        from: `"Mind Insurance" <${process.env.SMTP_USER}>`,
-        to,
-        subject,
-        ...(html ? { html } : { text })
-      });
-      console.log(`📧 邮件发送成功: ${to}`);
-      return true;
-    } catch (error) {
-      console.error(`📧 邮件发送失败 (尝试 ${i+1}/${retries}):`, error.message);
-      if (i === retries - 1) return false;
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
-  return false;
-}
-async function initSMTP() {
-  try {
-    const smtpHost = process.env.SMTP_HOST || 'smtp.qq.com';
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
-    let addresses;
-    try { addresses = await resolve4(smtpHost); } catch(e) {}
-    const smtpIp = addresses?.[0] || smtpHost;
-    transporter = nodemailer.createTransport({
-      host: smtpIp,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-    });
-    await transporter.verify();
-    console.log(`✅ SMTP 服务器就绪`);
-  } catch (err) {
-    console.error('❌ SMTP 初始化失败，邮件功能不可用', err.message);
-  }
-}
-initSMTP();
+// ======================== Resend 邮件服务 ========================
+const resend = new Resend(process.env.RESEND_API_KEY);
 
+async function sendEmail({ to, subject, text }) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Mind Insurance <service@${process.env.DOMAIN || 'mindapp.online'}>`,
+      to: [to],
+      subject: subject,
+      html: `<p>${text.replace(/\n/g, '<br>')}</p>`
+    });
+    if (error) {
+      console.error('Resend 发送失败:', error);
+      return false;
+    }
+    console.log('邮件发送成功:', data);
+    return true;
+  } catch (err) {
+    console.error('邮件发送异常:', err);
+    return false;
+  }
+}
+
+// 辅助函数
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -334,47 +300,24 @@ function computeTaskStatus(task, now = Math.floor(Date.now() / 1000)) {
   return 'final';
 }
 
-function toTaskView(dbTask) {
-  const now = Math.floor(Date.now() / 1000);
-  const diffSec = now - dbTask.last_checkin;
-  const daysSince = Math.floor(diffSec / (24 * 60 * 60));
-  const cycleDays = dbTask.cycle_days;
-  const warningDays = dbTask.warning_days;
-  const finalDays = dbTask.final_days;
-  let status = 'normal';
-  if (daysSince > cycleDays) {
-    const overdue = daysSince - cycleDays;
-    if (overdue < warningDays) status = 'normal';
-    else if (overdue < warningDays + finalDays) status = 'warning';
-    else status = 'final';
-  }
-  return {
-    id: dbTask.id,
-    name: dbTask.name,
-    cycle_days: dbTask.cycle_days,
-    warning_days: dbTask.warning_days,
-    final_days: dbTask.final_days,
-    warning_email: dbTask.warning_email,
-    final_email: dbTask.final_email,
-    warning_message: dbTask.warning_message,
-    final_message: dbTask.final_message,
-    last_checkin: dbTask.last_checkin,
-    need_human_confirm: dbTask.need_human_confirm === 1,
-    contact_phone: dbTask.contact_phone,
-    status: status
-  };
+// ======================== 支付成功处理（保留但支付功能已移除，实际不会被调用） ========================
+async function handlePaymentSuccess(orderNo, transactionId, paidAtUnix, channel) {
+  // 此函数理论上不会被调用，因为前端不会发起支付。但保留以免数据库状态不一致。
+  console.log(`⚠️ 意外调用支付成功处理: ${orderNo}, ${channel}`);
+  return false;
 }
 
 // ======================== API 路由 ========================
 app.get('/api/config', (req, res) => {
   const plans = [
-    { id: '1y', name: '1 Year', price: PLAN_PRICES['1y'], price_yuan: (PLAN_PRICES['1y']/100).toFixed(2), days: PLAN_DAYS['1y'], reward: PLAN_REWARDS['1y'], reward_yuan: (PLAN_REWARDS['1y']/100).toFixed(2) },
-    { id: '2y', name: '2 Years', price: PLAN_PRICES['2y'], price_yuan: (PLAN_PRICES['2y']/100).toFixed(2), days: PLAN_DAYS['2y'], reward: PLAN_REWARDS['2y'], reward_yuan: (PLAN_REWARDS['2y']/100).toFixed(2) },
-    { id: '3y', name: '3 Years', price: PLAN_PRICES['3y'], price_yuan: (PLAN_PRICES['3y']/100).toFixed(2), days: PLAN_DAYS['3y'], reward: PLAN_REWARDS['3y'], reward_yuan: (PLAN_REWARDS['3y']/100).toFixed(2) }
+    { id: '1y', name: '1年套餐', price: PLAN_PRICES['1y'], price_yuan: (PLAN_PRICES['1y']/100).toFixed(2), days: PLAN_DAYS['1y'], reward: PLAN_REWARDS['1y'], reward_yuan: (PLAN_REWARDS['1y']/100).toFixed(2) },
+    { id: '2y', name: '2年套餐', price: PLAN_PRICES['2y'], price_yuan: (PLAN_PRICES['2y']/100).toFixed(2), days: PLAN_DAYS['2y'], reward: PLAN_REWARDS['2y'], reward_yuan: (PLAN_REWARDS['2y']/100).toFixed(2) },
+    { id: '3y', name: '3年套餐', price: PLAN_PRICES['3y'], price_yuan: (PLAN_PRICES['3y']/100).toFixed(2), days: PLAN_DAYS['3y'], reward: PLAN_REWARDS['3y'], reward_yuan: (PLAN_REWARDS['3y']/100).toFixed(2) }
   ];
   res.json({ plans });
 });
 
+// 查询邮箱是否有有效订阅
 app.post('/api/check-subscription', async (req, res) => {
   const { email } = req.body;
   if (!email || !validator.isEmail(email)) {
@@ -410,33 +353,7 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-// 支付禁用响应（替代原有的下单接口）
-app.post('/api/create-wechat-order', optionalAuth, (req, res) => {
-  res.status(402).json({ error: 'PAYMENT_DISABLED', message: 'Sorry, online payment is currently not available in your area. Please contact the administrator or recommender.' });
-});
-app.post('/api/create-alipay-order', optionalAuth, (req, res) => {
-  res.status(402).json({ error: 'PAYMENT_DISABLED', message: 'Sorry, online payment is currently not available in your area. Please contact the administrator or recommender.' });
-});
-
-// 支付状态查询（保留，以便前端轮询但实际不会用）
-app.get('/api/pay/status/:orderNo', async (req, res) => {
-  const result = await pool.query('SELECT status FROM payments WHERE order_no = $1', [req.params.orderNo]);
-  if (result.rows.length === 0) return res.status(404).json({ error: '订单不存在' });
-  res.json({ status: result.rows[0].status });
-});
-
-app.get('/api/pay/order/:orderNo', async (req, res) => {
-  const { orderNo } = req.params;
-  try {
-    const result = await pool.query('SELECT user_email FROM payments WHERE order_no = $1', [orderNo]);
-    if (result.rows.length === 0) return res.status(404).json({ error: '订单不存在' });
-    res.json({ user_email: result.rows[0].user_email });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ======================== 发送登录验证码接口（禁用支付） ========================
+// 发送登录验证码接口（无支付，仅返回 needPay 提示）
 app.post('/api/send-login-code', optionalAuth, async (req, res) => {
   const { email, ref, plan } = req.body;
   if (!email) return res.status(400).json({ error: '缺少邮箱参数' });
@@ -453,7 +370,7 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     if (exp && exp > now) hasActiveSubscription = true;
   }
 
-  // 有效订阅：发送6位验证码
+  // 已有有效订阅：直接发送动态验证码
   if (hasActiveSubscription) {
     const code = generateCode();
     const expires = now + 600;
@@ -461,10 +378,10 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
       'INSERT INTO email_verification_codes (email, code, expires_at, created_at) VALUES ($1, $2, $3, $4)',
       [email, code, expires, now]
     );
-    const sent = await sendMailWithRetry({
+    const sent = await sendEmail({
       to: email,
       subject: 'Login Verification Code',
-      text: `Your verification code is: ${code}, valid for 10 minutes.`
+      text: `Your verification code is: ${code}\nValid for 10 minutes.`
     });
     if (sent) {
       res.json({ success: true, alreadyPaid: true });
@@ -474,41 +391,37 @@ app.post('/api/send-login-code', optionalAuth, async (req, res) => {
     return;
   }
 
-  // 无有效订阅：需创建/更新待付款记录，并提示联系管理员（不发送验证码）
-  // 处理推荐人
+  // 无有效订阅：前端需要提示支付不可用，不再创建订单
+  // 但为了前端能正确弹出提示，返回 needPay: true
+  // 同时为了兼容原来的逻辑，也创建一条 email_authorizations 记录（用于可能的线下授权）
+  if (!plan || !PLAN_PRICES[plan]) {
+    return res.status(400).json({ error: '请选择套餐' });
+  }
+
+  // 处理推荐码
   let referrerEmail = null;
   if (ref) {
     const refRes = await pool.query('SELECT email FROM email_authorizations WHERE referral_code = $1', [ref]);
     if (refRes.rows.length > 0) referrerEmail = refRes.rows[0].email;
   }
 
-  // 确保 email_authorizations 中存在记录
-  const existAuth = await pool.query('SELECT email, referrer_email FROM email_authorizations WHERE email = $1', [email]);
+  // 创建 email_authorizations 记录（如果不存在），用于线下付款授权
+  const existAuth = await pool.query('SELECT email FROM email_authorizations WHERE email = $1', [email]);
   if (existAuth.rows.length === 0) {
-    const authCode = generateCode();        // 暂存，管理员后续可发送此授权码
-    const expires = now + 86400;            // 24小时有效期
+    const authCode = generateCode();
+    const authExpires = now + 86400;
     const referralCode = generateReferralCode();
     await pool.query(
-      `INSERT INTO email_authorizations 
-        (email, auth_code, expires_at, authorized, created_at, status, payment_status, referrer_email, referral_code, plan_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [email, authCode, expires, false, now, 'active', 'unpaid', referrerEmail, referralCode, plan || null]
+      `INSERT INTO email_authorizations (email, auth_code, expires_at, authorized, created_at, status, payment_status, referrer_email, referral_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [email, authCode, authExpires, false, now, 'active', 'unpaid', referrerEmail, referralCode]
     );
-  } else {
-    // 如果已存在记录且未付费，更新推荐人（如果为空且本次有ref），并补全套餐意向
-    if (referrerEmail && !existAuth.rows[0].referrer_email) {
-      await pool.query('UPDATE email_authorizations SET referrer_email = $1 WHERE email = $2', [referrerEmail, email]);
-    }
-    if (plan) {
-      await pool.query('UPDATE email_authorizations SET plan_type = $1 WHERE email = $2 AND plan_type IS NULL', [plan, email]);
-    }
+  } else if (referrerEmail) {
+    await pool.query(`UPDATE email_authorizations SET referrer_email = COALESCE(referrer_email, $1) WHERE email = $2`, [referrerEmail, email]);
   }
 
-  // 返回支付不可用提示（前端会显示模态框）
-  res.status(402).json({
-    error: 'PAYMENT_DISABLED',
-    message: 'Sorry, online payment is currently not available in your area. Please contact the administrator or recommender.'
-  });
+  // 返回需要支付的标志（前端会弹出提示）
+  res.json({ success: true, needPay: true });
 });
 
 app.post('/api/verify-login-code',
@@ -540,6 +453,7 @@ app.post('/api/verify-login-code',
     }
 
     try {
+      // 先查询动态验证码
       const codeRes = await pool.query('SELECT code, expires_at FROM email_verification_codes WHERE email = $1 AND code = $2', [email, code]);
       if (codeRes.rows.length > 0 && codeRes.rows[0].expires_at > now) {
         await pool.query('DELETE FROM email_verification_codes WHERE email = $1 AND code = $2', [email, code]);
@@ -556,6 +470,7 @@ app.post('/api/verify-login-code',
         return res.json({ success: true });
       }
 
+      // 再查授权码
       const authRes = await pool.query('SELECT auth_code, expires_at, authorized, payment_status, subscription_expires_at FROM email_authorizations WHERE email = $1', [email]);
       if (authRes.rows.length === 0) return res.status(400).json({ error: '无效验证码' });
       const record = authRes.rows[0];
@@ -586,7 +501,7 @@ app.get('/api/user/profile', authenticateJWT, async (req, res) => {
   const email = req.user.email;
   const now = Math.floor(Date.now() / 1000);
   try {
-    const result = await pool.query('SELECT email, referral_code, commission_balance, total_earned, plan_type, subscription_expires_at, payment_account, payment_account_type FROM email_authorizations WHERE email = $1', [email]);
+    const result = await pool.query('SELECT email, referral_code, commission_balance, total_earned, plan_type, subscription_expires_at FROM email_authorizations WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(404).json({ error: '用户不存在' });
     const user = result.rows[0];
     let referralLink = '';
@@ -607,24 +522,8 @@ app.get('/api/user/profile', authenticateJWT, async (req, res) => {
       total_earned: user.total_earned || 0,
       plan_type: user.plan_type || 'none',
       subscription_expires_at: user.subscription_expires_at,
-      days_left: daysLeft,
-      payment_account: user.payment_account || '',
-      payment_account_type: user.payment_account_type || 'WeChat'
+      days_left: daysLeft
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/user/update-payment-account', authenticateJWT, async (req, res) => {
-  const email = req.user.email;
-  const { payment_account_type, payment_account } = req.body;
-  if (!payment_account || payment_account.trim() === '') {
-    return res.status(400).json({ error: '收款账号不能为空' });
-  }
-  try {
-    await pool.query('UPDATE email_authorizations SET payment_account = $1, payment_account_type = $2 WHERE email = $3', [payment_account.trim(), payment_account_type || 'WeChat', email]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -640,6 +539,7 @@ app.get('/api/user/commissions', authenticateJWT, async (req, res) => {
   }
 });
 
+// ======================== 通知系统（用户端） ========================
 app.get('/api/user/notices', authenticateJWT, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -651,7 +551,7 @@ app.get('/api/user/notices', authenticateJWT, async (req, res) => {
   }
 });
 
-// ======================== 任务管理（同原逻辑） ========================
+// ======================== 任务管理 ========================
 app.get('/api/tasks', authenticateJWT, async (req, res) => {
   const email = req.user.email;
   try {
@@ -664,7 +564,26 @@ app.get('/api/tasks', authenticateJWT, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const tasks = rows.map(dbTask => toTaskView(dbTask));
+    const now = Math.floor(Date.now() / 1000);
+    const tasks = rows.map(task => {
+      const camelTask = {
+        id: task.id,
+        name: task.name,
+        cycleDays: task.cycle_days,
+        warningDays: task.warning_days,
+        finalDays: task.final_days,
+        warningEmail: task.warning_email,
+        finalEmail: task.final_email,
+        warningMessage: task.warning_message,
+        finalMessage: task.final_message,
+        lastCheckin: task.last_checkin,
+        contactPhone: task.contact_phone,
+        need_human_confirm: task.need_human_confirm === 1,
+        needHumanConfirm: task.need_human_confirm
+      };
+      camelTask.status = computeTaskStatus(camelTask, now);
+      return camelTask;
+    });
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -686,8 +605,25 @@ app.get('/api/tasks/:id', authenticateJWT, param('id').notEmpty(), async (req, r
       [id, email]
     );
     if (rows.length === 0) return res.status(404).json({ error: '任务不存在' });
-    const taskView = toTaskView(rows[0]);
-    res.json(taskView);
+    const task = rows[0];
+    const now = Math.floor(Date.now() / 1000);
+    const camelTask = {
+      id: task.id,
+      name: task.name,
+      cycleDays: task.cycle_days,
+      warningDays: task.warning_days,
+      finalDays: task.final_days,
+      warningEmail: task.warning_email,
+      finalEmail: task.final_email,
+      warningMessage: task.warning_message,
+      finalMessage: task.final_message,
+      lastCheckin: task.last_checkin,
+      contactPhone: task.contact_phone,
+      need_human_confirm: task.need_human_confirm === 1,
+      needHumanConfirm: task.need_human_confirm
+    };
+    camelTask.status = computeTaskStatus(camelTask, now);
+    res.json(camelTask);
   } catch (err) {
     res.status(500).json({ error: '获取任务失败' });
   }
@@ -770,22 +706,6 @@ app.put('/api/tasks/:id',
     const { id } = req.params;
     const email = req.user.email;
     const updates = req.body;
-    if (updates.warning_days !== undefined && updates.final_days !== undefined) {
-      if (updates.final_days <= updates.warning_days) {
-        return res.status(400).json({ error: '终止天数必须大于警告天数' });
-      }
-    } else if (updates.final_days !== undefined) {
-      const existing = await pool.query('SELECT "warningDays" FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
-      if (existing.rows.length && existing.rows[0].warningDays >= updates.final_days) {
-        return res.status(400).json({ error: '终止天数必须大于警告天数' });
-      }
-    } else if (updates.warning_days !== undefined) {
-      const existing = await pool.query('SELECT "finalDays" FROM tasks WHERE id = $1 AND user_email = $2', [id, email]);
-      if (existing.rows.length && updates.warning_days >= existing.rows[0].finalDays) {
-        return res.status(400).json({ error: '终止天数必须大于警告天数' });
-      }
-    }
-
     const setParts = [];
     const values = [];
     let idx = 1;
@@ -857,7 +777,26 @@ app.post('/api/auto-checkin', authenticateJWT, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const tasks = rows.map(dbTask => toTaskView(dbTask));
+    const nowTs = Math.floor(Date.now() / 1000);
+    const tasks = rows.map(task => {
+      const camelTask = {
+        id: task.id,
+        name: task.name,
+        cycleDays: task.cycle_days,
+        warningDays: task.warning_days,
+        finalDays: task.final_days,
+        warningEmail: task.warning_email,
+        finalEmail: task.final_email,
+        warningMessage: task.warning_message,
+        finalMessage: task.final_message,
+        lastCheckin: task.last_checkin,
+        contactPhone: task.contact_phone,
+        need_human_confirm: task.need_human_confirm === 1,
+        needHumanConfirm: task.need_human_confirm
+      };
+      camelTask.status = computeTaskStatus(camelTask, nowTs);
+      return camelTask;
+    });
     res.json({ success: true, count: rows.length, tasks });
   } catch (err) {
     console.error(err);
@@ -865,7 +804,7 @@ app.post('/api/auto-checkin', authenticateJWT, async (req, res) => {
   }
 });
 
-// ======================== 管理员后台接口（同原逻辑） ========================
+// ======================== 管理员后台接口（保留所有管理员功能） ========================
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
@@ -977,9 +916,9 @@ app.post('/api/customer/send-final/:taskId', verifyAdminToken, async (req, res) 
     }
     const baseText = task.finalMessage || '您已连续多日未打卡，任务已终止。';
     const mailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-    const success = await sendMailWithRetry({
+    const success = await sendEmail({
       to: task.finalEmail,
-      subject: '【Mind Insurance】任务终止通知',
+      subject: '【心灵保险】任务终止通知',
       text: mailText
     });
     if (success) {
@@ -1011,7 +950,7 @@ app.get('/api/admin/pending-auths', verifyAdminToken, async (req, res) => {
 app.get('/api/admin/manage-emails', verifyAdminToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT email, auth_code, authorized, status, created_at, payment_status, paid_at, referrer_email, commission_balance, total_earned, plan_type, subscription_expires_at, payment_account, payment_account_type
+      `SELECT email, auth_code, authorized, status, created_at, payment_status, paid_at, referrer_email, commission_balance, total_earned, plan_type, subscription_expires_at
        FROM email_authorizations 
        ORDER BY created_at DESC`
     );
@@ -1023,13 +962,7 @@ app.get('/api/admin/manage-emails', verifyAdminToken, async (req, res) => {
 
 app.get('/api/admin/commissions', verifyAdminToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT c.id, c.referrer_email, c.user_email, c.amount, c.status, c.created_at, c.paid_at, c.plan_type,
-             e.payment_account, e.payment_account_type
-      FROM commissions c
-      LEFT JOIN email_authorizations e ON c.referrer_email = e.email
-      ORDER BY c.created_at DESC
-    `);
+    const { rows } = await pool.query('SELECT * FROM commissions ORDER BY created_at DESC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1049,7 +982,24 @@ app.get('/admin-api/tasks', verifyAdminToken, async (req, res) => {
        FROM tasks WHERE user_email = $1`,
       [email]
     );
-    const tasks = rows.map(dbTask => toTaskView(dbTask));
+    const now = Math.floor(Date.now() / 1000);
+    const tasks = rows.map(task => {
+      const camelTask = {
+        ...task,
+        cycleDays: task.cycle_days,
+        warningDays: task.warning_days,
+        finalDays: task.final_days,
+        lastCheckin: task.last_checkin,
+        warningEmail: task.warning_email,
+        finalEmail: task.final_email,
+        warningMessage: task.warning_message,
+        finalMessage: task.final_message,
+        contactPhone: task.contact_phone,
+        needHumanConfirm: task.need_human_confirm === 1
+      };
+      camelTask.status = computeTaskStatus(camelTask, now);
+      return camelTask;
+    });
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -1071,11 +1021,11 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
     const wasPaid = before.rows[0]?.payment_status === 'paid';
 
     const result = await pool.query(
-      `UPDATE email_authorizations 
-       SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3, authorized = true
-       WHERE email = $4 AND payment_status = 'unpaid'`,
-      [now, plan, newExpiration, email]
-    );
+  `UPDATE email_authorizations 
+   SET payment_status = 'paid', paid_at = $1, plan_type = $2, subscription_expires_at = $3
+   WHERE email = $4 AND payment_status = 'unpaid'`,
+  [now, plan, newExpiration, email]
+);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: '未找到待确认付款的邮箱或已付款' });
     }
@@ -1098,9 +1048,9 @@ app.post('/api/admin/confirm-payment', verifyAdminToken, async (req, res) => {
             [rewardAmount, referrerEmail]
           );
           const rewardYuan = (rewardAmount / 100).toFixed(2);
-          await sendMailWithRetry({
+          await sendEmail({
             to: referrerEmail,
-            subject: '【Mind Insurance】您推荐的用户已付款，返利待发放',
+            subject: '【心灵保险】您推荐的用户已付款，返利待发放',
             text: `您推荐的用户 ${email} 购买了 ${plan} 套餐，您将获得 ${rewardYuan} 元返利。请等待管理员线下转账。`
           });
         }
@@ -1130,9 +1080,9 @@ app.post('/api/admin/send-auth-code', verifyAdminToken, async (req, res) => {
     return res.status(404).json({ error: '无有效的待授权记录' });
   }
   const authCode = result.rows[0].auth_code;
-  const success = await sendMailWithRetry({
+  const success = await sendEmail({
     to: email,
-    subject: '【Mind Insurance】您的邮箱授权码',
+    subject: '【心灵保险】您的邮箱授权码',
     text: `您的邮箱授权码是：${authCode}，有效期24小时。`
   });
   if (success) res.json({ success: true });
@@ -1196,7 +1146,6 @@ app.post('/api/admin/delete-email', verifyAdminToken, requireSuperAdmin, async (
     await client.query('DELETE FROM commissions WHERE referrer_email = $1 OR user_email = $1', [email]);
     await client.query('DELETE FROM tasks WHERE user_email = $1', [email]);
     await client.query('DELETE FROM payments WHERE user_email = $1', [email]);
-    await client.query('DELETE FROM email_verification_codes WHERE email = $1', [email]);
     await client.query('DELETE FROM email_authorizations WHERE email = $1', [email]);
     await client.query('COMMIT');
     res.json({ success: true });
@@ -1264,9 +1213,9 @@ async function checkTask(task) {
   const overdueDays = daysSince - cycleDays;
   if (overdueDays >= warningDays && overdueDays < warningDays + finalDays) {
     if (!task.warningSent) {
-      const success = await sendMailWithRetry({
+      const success = await sendEmail({
         to: task.warningEmail,
-        subject: '【Mind Insurance】打卡警告',
+        subject: '【心灵保险】打卡警告',
         text: task.warningMessage || `您已连续 ${overdueDays} 天未打卡，请及时打卡。`
       });
       if (success) {
@@ -1282,9 +1231,9 @@ async function checkTask(task) {
         const contactPhone = task.contactPhone || '未提供';
         const confirmLink = `${process.env.BASE_URL}/admin.html?token=${process.env.CUSTOMER_TOKEN || ''}`;
         const mailText = `任务 "${task.name}" 已到达终止条件，需要人工确认。\n- 用户邮箱：${task.user_email}\n- 监督人邮箱：${task.finalEmail}\n- 联系电话：${contactPhone}\n- 最后打卡：${new Date(task.lastCheckin * 1000).toLocaleString()}\n请登录客服界面处理：${confirmLink}`;
-        const success = await sendMailWithRetry({
+        const success = await sendEmail({
           to: customerEmail,
-          subject: '【Mind Insurance】客服人工确认提醒',
+          subject: '【心灵保险】客服人工确认提醒',
           text: mailText
         });
         if (success) {
@@ -1295,9 +1244,9 @@ async function checkTask(task) {
       if (!task.finalSent) {
         const baseText = task.finalMessage || `您已连续 ${overdueDays} 天未打卡，任务已终止。`;
         const finalMailText = `来自 ${task.user_email} 的终止通知：\n\n${baseText}`;
-        const success = await sendMailWithRetry({
+        const success = await sendEmail({
           to: task.finalEmail,
-          subject: '【Mind Insurance】任务终止通知',
+          subject: '【心灵保险】任务终止通知',
           text: finalMailText
         });
         if (success) {
@@ -1320,8 +1269,8 @@ app.get('*', (req, res) => {
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`✅ 后端服务运行在端口 ${port}`);
-  console.log(`📌 套餐价格: 1年 ${PLAN_PRICES['1y']/100} USD, 2年 ${PLAN_PRICES['2y']/100} USD, 3年 ${PLAN_PRICES['3y']/100} USD`);
-  console.log(`🎁 推荐奖励: 1年 ${PLAN_REWARDS['1y']/100} USD, 2年 ${PLAN_REWARDS['2y']/100} USD, 3年 ${PLAN_REWARDS['3y']/100} USD`);
+  console.log(`📌 套餐价格: 1年 ${PLAN_PRICES['1y']/100}元, 2年 ${PLAN_PRICES['2y']/100}元, 3年 ${PLAN_PRICES['3y']/100}元`);
+  console.log(`🎁 推荐奖励: 1年 ${PLAN_REWARDS['1y']/100}元, 2年 ${PLAN_REWARDS['2y']/100}元, 3年 ${PLAN_REWARDS['3y']/100}元`);
   if (TEST_EMAIL && TEST_CODE) {
     console.log(`🔧 测试模式已启用：邮箱 ${TEST_EMAIL} 可使用固定验证码 ${TEST_CODE} 登录`);
   }
