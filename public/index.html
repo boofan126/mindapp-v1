@@ -153,7 +153,7 @@
             </div>
             <p style="margin-top:10px; font-size:0.75rem; color:#6c757d;">Share this link, you will get reward when friend registers and pays</p>
             <h3 style="margin-top:20px;">Commission Balance</h3>
-            <p id="commissionBalance" style="font-size:1.2rem; font-weight:600;">0 CNY</p>
+            <p id="commissionBalance" style="font-size:1.2rem; font-weight:600;">0 USD</p>
             <div id="subscriptionInfo" class="expiry-warning"></div>
             <div id="renewBtnContainer" style="margin:10px 0;"></div>
             <h3>Commission Records</h3>
@@ -387,7 +387,8 @@
         if(!modal) return;
         const container = document.getElementById('planSelectorModal');
         if(!container||!plansData.length) return;
-        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${p.price_yuan} CNY</div><div class="plan-name">${p.name}</div><div class="plan-reward">${t('referralHint')} ${p.reward_yuan} CNY</div></div>`).join('');
+        // 修改货币单位为 USD
+        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${p.price_yuan} USD</div><div class="plan-name" style="display:none;">${p.name}</div><div class="plan-reward" style="display:none;">${t('referralHint')} ${p.reward_yuan} USD</div></div>`).join('');
         let selectedPlan = plansData[0].id;
         container.querySelectorAll('.plan-option').forEach(el=>{
             el.addEventListener('click',()=>{
@@ -530,7 +531,7 @@
             if(!res) return;
             const data = await res.json();
             document.getElementById('referralLinkText').innerText = data.referral_link || t('testAccountNoReferral');
-            document.getElementById('commissionBalance').innerText = (data.commission_balance/100).toFixed(2) + ' CNY';
+            document.getElementById('commissionBalance').innerText = (data.commission_balance/100).toFixed(2) + ' USD';
             const subDiv = document.getElementById('subscriptionInfo'), renewContainer = document.getElementById('renewBtnContainer');
             if(data.days_left>0){
                 subDiv.innerHTML = `📅 Subscription remaining <strong>${data.days_left}</strong> days, Plan: ${data.plan_type}`;
@@ -561,11 +562,11 @@
         if(!allCommissions.length){ container.innerHTML='<p>No commission records</p>'; toggleBtn.style.display='none'; return; }
         const displayCount = expanded ? allCommissions.length : Math.min(3,allCommissions.length);
         const shown = allCommissions.slice(0,displayCount);
-        let html = '<table class="commission-table"><thead><tr><th>Referred User</th><th>Amount (CNY)</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+        let html = '<table class="commission-table"><thead><tr><th>Referred User</th><th>Amount (USD)</th><th>Status</th><th>Time</th></tr></thead><tbody>';
         for(let c of shown){
             let statusText = c.status==='pending'?'Pending':'Paid';
             let amountYuan = (c.amount/100).toFixed(2);
-            html+=`｜｜DSML｜｜<td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
+            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
         }
         html+='</tbody></table>';
         container.innerHTML = html;
