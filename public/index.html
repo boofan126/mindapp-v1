@@ -7,17 +7,16 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
         body { background:#1a1a1a; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:8px; }
-        .app-container { max-width:600px; width:100%; background:white; border-radius:28px; padding:20px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); }
+        .app-container { max-width:600px; width:100%; background:white; border-radius:28px; padding:16px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); }
         .page { display:block; }
         .hidden { display:none !important; }
-        .logo-img { width:32px; height:32px; margin-right:10px; border-radius:50%; object-fit:cover; }
-        h1 { font-weight:600; font-size:1.5rem; display:flex; align-items:center; }
-        .subhead { color:#6c757d; font-size:0.85rem; border-bottom:1px solid #e9ecef; padding-bottom:0.6rem; margin-bottom:1.2rem; }
-        button { border:none; padding:10px 16px; border-radius:40px; cursor:pointer; transition:0.2s ease; font-weight:500; }
-        button.small { padding:6px 12px; font-size:0.8rem; }
+        .logo-img { width:28px; height:28px; margin-right:8px; border-radius:50%; object-fit:cover; }
+        h1 { font-weight:600; font-size:1.3rem; display:flex; align-items:center; margin-bottom:8px; }
+        .subhead { color:#6c757d; font-size:0.8rem; border-bottom:1px solid #e9ecef; padding-bottom:0.4rem; margin-bottom:1rem; }
+        button { border:none; padding:8px 14px; border-radius:40px; cursor:pointer; transition:0.2s ease; font-weight:500; }
+        button.small { padding:5px 10px; font-size:0.75rem; }
         button.primary { background:#007bff; color:white; }
         button.secondary { background:transparent; border:1px solid #ced4da; color:#495057; }
-        button.primary:active { transform:scale(0.97); }
         .btn-manual { background:#e8f5e9; border:1px solid #a5d6a7; color:#2e7d32; }
         .btn-save { background:#fff8e1; border:1px solid #ffe082; color:#b76e00; }
         .btn-delete { background:#ffebee; border:1px solid #ffcdd2; color:#c62828; }
@@ -25,69 +24,115 @@
         .btn-add-task { background:#fff3e0; border:1px solid #ffcc80; color:#e65100; }
         .btn-switch-account { background:#f5f5f5; border:1px solid #e0e0e0; }
         .btn-renew { background:#fff3cd; border:1px solid #ffc107; color:#856404; }
-        input, textarea, select { width:100%; padding:10px 16px; border:1px solid #dee2e6; border-radius:48px; font-size:0.95rem; outline:none; transition:0.2s; }
+        input, textarea, select { width:100%; padding:8px 12px; border:1px solid #dee2e6; border-radius:40px; font-size:0.9rem; outline:none; transition:0.2s; }
         input:focus, textarea:focus, select:focus { border-color:#80bdff; box-shadow:0 0 0 0.2rem rgba(0,123,255,0.25); }
-        .login-row { display:flex; gap:10px; align-items:center; margin-top:12px; }
+        .login-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
         .login-row input { flex:2; min-width:0; }
-        .enter-btn { margin-top:20px; width:100%; background:#28a745; font-size:1rem; }
-        .card { background:#ffffff; border-radius:20px; padding:12px; margin-bottom:12px; border:1px solid #e9ecef; cursor:pointer; transition:0.1s; }
+        .enter-btn { margin-top:16px; width:100%; background:#28a745; font-size:1rem; }
+        .card { background:#ffffff; border-radius:18px; padding:10px; margin-bottom:10px; border:1px solid #e9ecef; cursor:pointer; transition:0.1s; }
         .card:hover { background:#f8f9fa; border-color:#ced4da; }
-        .task-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; flex-wrap:wrap; }
-        .task-title-input { font-weight:600; background:#f1f3f5; border-radius:40px; padding:8px 14px; flex:2; font-size:1rem; }
-        .status-badge { background:#e9ecef; padding:4px 12px; border-radius:40px; font-size:0.7rem; font-weight:500; }
+        .task-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px; flex-wrap:wrap; }
+        .task-title-input { font-weight:600; background:#f1f3f5; border-radius:40px; padding:6px 12px; flex:2; font-size:0.95rem; }
+        .status-badge { background:#e9ecef; padding:4px 10px; border-radius:40px; font-size:0.7rem; font-weight:500; }
         .status-badge.normal { background:#d4edda; color:#155724; }
         .status-badge.warning { background:#fff3cd; color:#856404; }
         .status-badge.final { background:#f8d7da; color:#721c24; }
-        .human-badge { padding:3px 8px; border-radius:20px; font-size:0.65rem; font-weight:500; }
+        .human-badge { padding:2px 8px; border-radius:20px; font-size:0.65rem; font-weight:500; }
         .human-badge.need { background:#f8d7da; color:#a11f2c; }
         .human-badge.not-need { background:#fff3cd; color:#8a5f00; }
-        .row-3col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px; }
-        .col-block { padding:8px 4px; border-radius:16px; background:#fff; text-align:center; border:1px solid #e9ecef; }
+        .row-3col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-bottom:10px; }
+        .col-block { padding:5px 4px; border-radius:14px; background:#fff; text-align:center; border:1px solid #e9ecef; }
+        .col-block label { font-size:0.7rem; display:block; margin-bottom:2px; }
+        .col-block select, .col-block input { padding:4px 6px; font-size:0.8rem; width:90%; margin:0 auto; }
         .cycle-block { background:#e8f5e9; }
         .warning-block { background:#fff8e1; }
         .final-block { background:#ffebee; }
-        .info-box { background:#e9ecef; border-radius:16px; padding:10px; margin-bottom:12px; font-size:0.7rem; color:#495057; }
-        .button-group-bottom { display:flex; gap:6px; margin-top:12px; }
+        .info-box { background:#e9ecef; border-radius:14px; padding:8px; margin-bottom:10px; font-size:0.65rem; color:#495057; }
+        .button-group-bottom { display:flex; gap:6px; margin-top:10px; }
         .button-group-bottom button { flex:1; }
-        .recent-checkin { font-size:0.65rem; color:#adb5bd; margin-top:10px; text-align:right; }
+        .recent-checkin { font-size:0.65rem; color:#adb5bd; margin-top:8px; text-align:right; }
         .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; z-index:1000; }
-        .modal-card { background:white; border-radius:32px; padding:20px; max-width:420px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 25px -12px rgba(0,0,0,0.2); }
-        .task-list-actions { display:flex; gap:10px; margin-top:16px; }
+        .modal-card { background:white; border-radius:28px; padding:16px; max-width:420px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 25px -12px rgba(0,0,0,0.2); }
+        .task-list-actions { display:flex; gap:8px; margin-top:12px; }
         .task-list-actions button { flex:1; }
-        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); color:white; padding:10px 20px; border-radius:50px; font-size:0.85rem; z-index:2000; animation:fadeOut 3s forwards; pointer-events:none; }
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); color:white; padding:8px 16px; border-radius:50px; font-size:0.8rem; z-index:2000; animation:fadeOut 3s forwards; pointer-events:none; }
         @keyframes fadeOut { 0% { opacity:1; } 70% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
-        .privacy-link { margin-top:70px; font-size:0.7rem; text-align:center; }
+        .privacy-link { margin-top:60px; font-size:0.7rem; text-align:center; }
         .privacy-link a { color:#007bff; text-decoration:none; margin:0 4px; }
-        .icp-footer { text-align:center; margin-top:12px; font-size:0.65rem; color:#007bff; }
-        .user-center-card { background:#ffffff; border-radius:24px; padding:18px; margin-top:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
-        .referral-link { background:#f1f3f5; padding:12px 16px; border-radius:60px; display:flex; justify-content:space-between; align-items:center; word-break:break-all; gap:8px; }
-        .copy-btn { background:#007bff; color:white; border:none; padding:6px 14px; border-radius:40px; cursor:pointer; font-size:0.8rem; }
-        .commission-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:0.75rem; display:block; overflow-x:auto; white-space:nowrap; }
-        .commission-table th, .commission-table td { padding:8px 6px; text-align:left; border-bottom:1px solid #e9ecef; }
+        .icp-footer { text-align:center; margin-top:10px; font-size:0.6rem; color:#007bff; }
+        .user-center-card { background:#ffffff; border-radius:20px; padding:12px; margin-top:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+        .user-center-card h3 { font-size:0.9rem; font-weight:600; margin-bottom:6px; margin-top:12px; color:#1e2a3a; }
+        .user-center-card h3:first-of-type { margin-top:0; }
+        .referral-link { background:#f1f3f5; padding:8px 12px; border-radius:40px; display:flex; justify-content:space-between; align-items:center; word-break:break-all; gap:8px; font-size:0.8rem; }
+        .copy-btn { background:#007bff; color:white; border:none; padding:5px 12px; border-radius:40px; cursor:pointer; font-size:0.75rem; }
+        .commission-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:0.7rem; display:block; overflow-x:auto; white-space:nowrap; }
+        .commission-table th, .commission-table td { padding:6px 4px; text-align:left; border-bottom:1px solid #e9ecef; }
         .commission-table th { background:#f8f9fa; font-weight:600; }
-        .tasklist-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; gap:12px; margin-bottom:8px; }
-        .tasklist-header h1 { font-size:1.3rem; margin:0; display:flex; align-items:center; }
-        .right-buttons { display:flex; gap:8px; flex-shrink:0; }
-        .login-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-        .plan-selector { display:flex; justify-content:space-between; gap:12px; margin:12px 0 12px; }
-        .plan-option { flex:1; border:1px solid #dee2e6; border-radius:24px; padding:10px 6px; text-align:center; cursor:pointer; background:#f8f9fa; transition:0.1s; }
-        .plan-option.selected { border:2px solid #007bff; background:#e7f0ff; box-shadow:0 2px 6px rgba(0,123,255,0.2); }
-        .plan-price { font-weight:800; font-size:0.8rem; color:#1e2a3a; line-height:1; text-align:center; }
-        .plan-name { display:none; }
-        .plan-reward { display:none; }
-        .expiry-warning { background:#fff3cd; border-left:4px solid #ffc107; padding:10px 12px; margin-top:10px; border-radius:12px; font-size:0.75rem; }
+        .tasklist-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; gap:10px; margin-bottom:6px; }
+        .tasklist-header h1 { font-size:1.2rem; }
+        .right-buttons { display:flex; gap:6px; flex-shrink:0; }
+        .login-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .plan-selector { display:flex; justify-content:space-between; gap:10px; margin:8px 0 8px; }
+        .plan-option { flex:1; border:1px solid #dee2e6; border-radius:20px; padding:6px 4px; text-align:center; cursor:pointer; background:#f8f9fa; transition:0.1s; }
+        .plan-option.selected { border:2px solid #007bff; background:#e7f0ff; }
+        .plan-price { font-weight:700; font-size:0.9rem; color:#1e2a3a; }
+        .expiry-warning { background:#fff3cd; border-left:4px solid #ffc107; padding:8px 10px; margin-top:8px; border-radius:10px; font-size:0.7rem; }
         button:disabled { opacity:0.6; cursor:not-allowed; }
-        .phone-hint { font-size:0.7rem; color:#6c757d; margin-top:4px; }
-        .subscription-tip { background:#d1ecf1; color:#0c5460; padding:8px 12px; border-radius:20px; font-size:0.75rem; margin-bottom:12px; text-align:center; }
-        .notice-bar { background:#e3f2fd; border-left:4px solid #2196f3; border-radius:16px; padding:12px; margin-bottom:16px; position:relative; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
-        .notice-title { font-weight:bold; font-size:0.85rem; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
-        .notice-title span:first-child { color:#0d47a1; }
-        .notice-content { font-size:0.75rem; color:#1e2a3a; line-height:1.4; white-space:pre-wrap; }
-        .notice-close { cursor:pointer; font-size:1rem; color:#888; background:none; border:none; padding:0 4px; line-height:1; }
-        .notice-close:hover { color:#333; }
-        .new-user-hint { font-size:0.7rem; color:#6c757d; margin:8px 0 4px; text-align:center; }
-        .modal-card textarea { border-radius:16px; margin-top:8px; }
-        .modal-card select { margin:8px 0; }
+        .pay-method-btn { margin:8px 0; padding:10px 16px; font-size:0.95rem; width:100%; border-radius:50px; font-weight:600; }
+        .pay-method-wechat { background:#2c9e3c; color:white; }
+        .pay-method-alipay { background:#1677ff; color:white; }
+        .phone-hint { font-size:0.65rem; color:#6c757d; margin-top:2px; }
+        .subscription-tip { background: #d1ecf1; color: #0c5460; padding:6px 10px; border-radius:20px; font-size:0.7rem; margin-bottom:10px; text-align: center; }
+        .notice-bar { background:#e3f2fd; border-left:4px solid #2196f3; border-radius:12px; padding:8px 10px; margin-bottom:12px; position:relative; font-size:0.75rem; }
+        .notice-title { font-weight:bold; font-size:0.8rem; margin-bottom:4px; display:flex; justify-content:space-between; }
+        .notice-content { font-size:0.7rem; line-height:1.3; white-space:pre-wrap; }
+        .notice-close { cursor:pointer; font-size:1rem; color:#888; background:none; border:none; padding:0 4px; }
+        .new-user-hint { font-size:0.65rem; color:#6c757d; margin:6px 0 2px; text-align:center; }
+        .payment-account-row { display:flex; gap:6px; align-items:center; margin:8px 0; flex-wrap:nowrap; }
+        .payment-account-row select { width:auto; min-width:70px; flex-shrink:0; padding:6px 8px; font-size:0.75rem; }
+        .payment-account-row input { flex:1; min-width:0; padding:6px 10px; font-size:0.8rem; }
+        .payment-account-row button { flex-shrink:0; white-space:nowrap; background:#28a745; color:white; border:none; padding:5px 12px; font-size:0.75rem; border-radius:40px; }
+        .uc-button-group { display:flex; gap:8px; margin:10px 0 6px; }
+        .uc-button-group button { flex:1; }
+        .commission-balance { font-size:1rem; font-weight:600; margin:4px 0; }
+        .plan-select-label { text-align:left; font-size:0.7rem; color:#495057; margin-bottom:4px; font-weight:500; }
+
+        /* subscription row two-column layout */
+        .subscription-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .subscription-info {
+            flex: 1;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .renew-btn-wrapper {
+            flex: 1;
+            text-align: right;
+        }
+        .renew-btn-wrapper button {
+            width: 100%;
+            max-width: 120px;
+        }
+        @media (max-width: 480px) {
+            .subscription-row {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .subscription-info, .renew-btn-wrapper {
+                flex: auto;
+                width: 100%;
+                text-align: left;
+            }
+            .renew-btn-wrapper button {
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -97,25 +142,30 @@
         <div class="login-header">
             <h1><img class="logo-img" src="logo.png" alt="logo" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 24 24\' fill=\'%234285f4\'%3E%3Cpath d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z\'/%3E%3C/svg%3E';">Mind Insurance</h1>
         </div>
-        <div style="text-align:center; margin-top:8px;">
-            <div style="margin-bottom:16px; color:#495057; font-size:1.3rem;">Welcome to Mind Insurance!<br>Accidents happen, no regrets!</div>
-            <input type="email" id="loginEmail" class="login-input" placeholder="Enter email address" autocomplete="email" style="margin:8px 0;">
+        <div style="text-align:center; margin-top:4px;">
+            <div style="white-space:pre-line; margin-bottom:14px; color:#495057;font-size:1.2rem;">Welcome to Mind Insurance!<br>There are accidents, but no regrets!</div>
+            <input type="email" id="loginEmail" class="login-input" placeholder="Enter email" autocomplete="email" style="margin:6px 0;">
             <div id="subscriptionHint" class="subscription-tip" style="display:none;"></div>
-            <div id="newUserHint" class="new-user-hint" style="display:none;">New user, please select a plan:</div>
-            <div id="planSelector" class="plan-selector" style="display:none;"></div>
+            <div id="newUserHint" class="new-user-hint" style="display:none;">New user? Select a plan:</div>
+            <div class="plan-select-label">Select plan:</div>
+            <div id="planSelector" class="plan-selector simple" style="display:none;"></div>
             <div class="login-row">
-                <input type="text" id="loginCode" placeholder="Verification code / Authorization code" autocomplete="off">
+                <input type="text" id="loginCode" placeholder="Verification / Auth Code" autocomplete="off">
                 <button class="secondary small" id="sendLoginCodeBtn">Get Code</button>
             </div>
             <button class="primary enter-btn" id="verifyAndEnterBtn">Verify & Enter</button>
-            <div class="intro-image-wrapper" style="text-align:center; margin:24px 0 16px;">
+            <div class="intro-image-wrapper" style="text-align: center; margin: 20px 0 12px;">
                 <a href="/mind-introduce/introduce.html" target="_blank">
-                    <img src="/mind-introduce/images/my-photo.png" alt="Learn about Mind Insurance" style="max-width:80%; height:auto; border-radius:20px; box-shadow:0 6px 16px rgba(0,0,0,0.1); cursor:pointer; display:block; margin:0 auto;">
+                    <img src="/mind-introduce/images/my-photo.png" alt="Learn about Mind Insurance" style="max-width: 80%; height: auto; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; display: block; margin: 0 auto;">
                 </a>
             </div>
             <div class="privacy-link">
                 <a href="#" id="showPrivacyLink">Privacy Policy</a> |
                 <a href="#" id="showTermsLink">Terms of Service</a>
+            </div>
+            <div class="icp-footer">
+                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">沪ICP备2026010571号-1</a> &nbsp;|
+                <a href="https://beian.mps.gov.cn" target="_blank" rel="noopener">沪公网安备31011702891521号</a>
             </div>
             <div class="icp-footer">MP：13585512586 &nbsp;| eMail：support@shkind.cn</div>
         </div>
@@ -129,12 +179,12 @@
                 <button id="userCenterBtn" class="small secondary">👤 User Center</button>
             </div>
         </div>
-        <div class="subhead">Task List (max 7)</div>
+        <div class="subhead">Task List (max 7 tasks)</div>
         <div id="taskListContainer"></div>
         <div class="task-list-actions">
-            <button id="autoCheckinAllBtn" class="small btn-checkin-all">One-click check-in</button>
-            <button id="addNewTaskBtn" class="small btn-add-task">+ Create</button>
-            <button id="switchAccountBtn" class="small btn-switch-account">Logout</button>
+            <button id="autoCheckinAllBtn" class="small btn-checkin-all">One-click Check-in</button>
+            <button id="addNewTaskBtn" class="small btn-add-task">New Task</button>
+            <button id="switchAccountBtn" class="small btn-switch-account">Switch Account</button>
         </div>
     </div>
 
@@ -144,23 +194,38 @@
             <h1><img class="logo-img" src="logo.png" alt="logo">Mind Insurance</h1>
         </div>
         <div class="subhead">User Center</div>
-        <div id="noticeContainer" style="margin-bottom:12px;"></div>
+        <div id="noticeContainer" style="margin-bottom:8px;"></div>
         <div class="user-center-card">
             <h3>My Referral Link</h3>
             <div class="referral-link">
                 <span id="referralLinkText">Loading...</span>
                 <button id="copyReferralBtn" class="copy-btn">Copy</button>
             </div>
-            <p style="margin-top:10px; font-size:0.75rem; color:#6c757d;">Share this link, you will get reward when friend registers and pays</p>
-            <h3 style="margin-top:20px;">Commission Balance</h3>
-            <p id="commissionBalance" style="font-size:1.2rem; font-weight:600;">0 USD</p>
+            <p style="margin-top:6px; font-size:0.7rem; color:#6c757d;">Share this link with friends – when they register and pay, you earn rewards.</p>
+            
+            <div class="uc-button-group">
+                <button id="openCodeMakerBtn" class="small btn-renew">QR Code Generator</button>
+                <button id="backFromUserCenterBtn" class="small btn-renew">Back to Tasks</button>
+            </div>
+            
+            <h3>Payment Account</h3>
+            <div class="payment-account-row">
+                <select id="paymentAccountType">
+                    <option value="微信">WeChat</option>
+                    <option value="支付宝">Alipay</option>
+                    <option value="其他">Other</option>
+                </select>
+                <input type="text" id="paymentAccountInput" placeholder="Enter account">
+                <button id="savePaymentAccountBtn" class="small" style="background:#28a745; color:white;">Save</button>
+            </div>
+            
+            <h3>Reward Balance</h3>
+            <div id="commissionBalance" class="commission-balance">0 USD</div>
             <div id="subscriptionInfo" class="expiry-warning"></div>
-            <div id="renewBtnContainer" style="margin:10px 0;"></div>
-            <h3>Commission Records</h3>
+            <div id="renewBtnContainer" style="margin:6px 0;"></div>
+            <h3>Reward Records</h3>
             <div id="commissionList">Loading...</div>
-            <button id="toggleCommissionBtn" class="toggle-commissions-btn" style="display:none; margin-top:10px; background:#e9ecef; border:none;">Expand All</button>
-            <button id="openCodeMakerBtn" class="small secondary" style="margin-top:16px;">QR Creator</button>
-            <button id="backFromUserCenterBtn" class="small secondary" style="margin-top:12px;">Back to Task List</button>
+            <button id="toggleCommissionBtn" class="toggle-commissions-btn" style="display:none; margin-top:6px; background:#e9ecef; border:none; font-size:0.7rem;">Expand All</button>
         </div>
     </div>
 
@@ -172,138 +237,92 @@
         <div class="subhead">Edit Task</div>
         <div class="card">
             <div class="task-header">
-                <input type="text" id="editTaskName" class="task-title-input" placeholder="Task name">
+                <input type="text" id="editTaskName" class="task-title-input" placeholder="Task Name">
                 <span id="editTaskStatus" class="status-badge normal">Normal</span>
             </div>
             <div class="row-3col">
-                <div class="col-block cycle-block"><label>Cycle</label><select id="editCycleDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option></select></div>
-                <div class="col-block warning-block"><label>Warning</label><input type="number" id="editWarningDays" min="1" value="2"></div>
-                <div class="col-block final-block"><label>Final</label><input type="number" id="editFinalDays" min="1" value="3"></div>
+                <div class="col-block cycle-block"><label>Cycle (days)</label><select id="editCycleDays"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></div>
+                <div class="col-block warning-block"><label>Warning (days)</label><input type="number" id="editWarningDays" min="1" value="2"></div>
+                <div class="col-block final-block"><label>Final (days)</label><input type="number" id="editFinalDays" min="1" value="3"></div>
             </div>
-            <div class="info-box">Cycle: your check-in period; Warning: days missed before warning; Final: days after warning before final notice.</div>
-            <div><label>Warning email to (login email)</label><input type="email" id="editWarningEmail" readonly></div>
-            <div style="margin-top:8px;"><label>Final notice to</label><input type="email" id="editFinalEmail" placeholder="Supervisor email"></div>
-            <div style="display:flex; gap:8px; margin:12px 0;">
-                <button id="editFinalBtn" class="small" style="background:#6c757d; color:white; flex:1;">Edit Final Notice</button>
-                <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-size:0.8rem;">
-                    <input type="checkbox" id="needHumanConfirmCheckbox"> <span>Need human confirm</span>
+            <div class="info-box">Cycle: your check-in period. Warning: days missed before sending a warning. Final: days after warning before termination notice.</div>
+            <div><label style="font-size:0.75rem;">Warning email sent to (login email)</label><input type="email" id="editWarningEmail" readonly style="font-size:0.8rem;"></div>
+            <div style="margin-top:6px;"><label style="font-size:0.75rem;">Final notice sent to</label><input type="email" id="editFinalEmail" placeholder="Supervisor's email" style="font-size:0.8rem;"></div>
+            <div style="display:flex; gap:6px; margin:8px 0;">
+                <button id="editFinalBtn" class="small" style="background:#6c757d; color:white; flex:1;">Edit Final Message</button>
+                <label style="display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:0.75rem;">
+                    <input type="checkbox" id="needHumanConfirmCheckbox"> Requires human confirmation
                 </label>
             </div>
             <div id="phoneHint" class="phone-hint"></div>
-            <div><label>Warning content (to yourself)</label><input type="text" id="editWarningMessage" placeholder="e.g., Please check in on time"></div>
+            <div><label style="font-size:0.75rem;">Warning content (to yourself)</label><input type="text" id="editWarningMessage" placeholder="e.g., Please check in on time" style="font-size:0.8rem;"></div>
             <div class="button-group-bottom">
-                <button id="editManualCheckinBtn" class="small btn-manual">Manual check-in</button>
-                <button id="editSaveTaskBtn" class="small btn-save">Save</button>
-                <button id="editDeleteTaskBtn" class="small btn-delete">Delete</button>
+                <button id="editManualCheckinBtn" class="small btn-manual">Manual Check-in</button>
+                <button id="editSaveTaskBtn" class="small btn-save">Save Task</button>
+                <button id="editDeleteTaskBtn" class="small btn-delete">Delete Task</button>
             </div>
-            <button id="backToTaskListBtn" class="small secondary" style="width:100%; margin-top:12px;">Back to Task List</button>
+            <button id="backToTaskListBtn" class="small secondary" style="width:100%; margin-top:8px;">Back to Task List</button>
             <div id="editLastCheckin" class="recent-checkin">Last check-in: Never</div>
         </div>
     </div>
 
-    <!-- Modal: Edit Final Notice -->
-    <div id="editFinalModal" class="modal-overlay hidden"><div class="modal-card"><h3>✉️ Edit Final Notice Email</h3><label>Final email content (to supervisor)</label><textarea id="editFinalMsg" rows="6" style="border-radius:16px;"></textarea><div style="display:flex; gap:12px; margin-top:16px;"><button class="secondary" id="editFinalCancelBtn">Cancel</button><button class="primary" id="editFinalSaveBtn">Save</button></div></div></div>
-
-    <!-- Modal: Phone Input -->
-    <div id="phoneModal" class="modal-overlay hidden"><div class="modal-card"><h3>Enter Contact Phone</h3><p style="font-size:0.75rem;">Customer service will contact you via this phone</p><div style="display:flex; gap:8px;"><select id="countryCode"></select><input type="tel" id="phoneNumber" placeholder="Phone number"></div><div style="display:flex; gap:12px; margin-top:16px;"><button class="secondary" id="phoneCancelBtn">Cancel</button><button class="primary" id="phoneSaveBtn">Save</button></div></div></div>
-
-    <!-- Modal: Plan Select (for renew) -->
-    <div id="planSelectModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h3>Select Plan</h3>
-            <div id="planSelectorModal" class="plan-selector" style="display:flex; margin:15px 0;"></div>
-            <button id="confirmPlanBtn" class="primary" style="width:100%;">Confirm</button>
-            <button id="cancelPlanBtn" class="secondary" style="margin-top:10px; width:100%;">Cancel</button>
+    <!-- Payment method modal -->
+    <div id="methodModal" class="modal-overlay hidden">
+        <div class="modal-card" style="text-align:center;">
+            <h3>Select Payment Method</h3>
+            <div id="modalPlanInfo" style="margin:10px 0; font-size:0.85rem;"></div>
+            <button id="chooseWechatBtn" class="pay-method-btn pay-method-wechat">WeChat Pay</button>
+            <button id="chooseAlipayBtn" class="pay-method-btn pay-method-alipay">Alipay</button>
+            <button id="closeMethodModalBtn" class="secondary" style="margin-top:10px;">Cancel</button>
         </div>
     </div>
 
-    <!-- Privacy & Terms Modals -->
-    <div id="privacyModal" class="modal-overlay hidden"><div class="modal-card"><h3>🔒 Privacy Policy</h3><div id="privacyContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closePrivacyBtn" class="secondary" style="margin-top:12px;">Close</button></div></div>
-    <div id="termsModal" class="modal-overlay hidden"><div class="modal-card"><h3>📜 Terms of Service</h3><div id="termsContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closeTermsBtn" class="secondary" style="margin-top:12px;">Close</button></div></div>
+    <!-- WeChat QR code modal -->
+    <div id="payModal" class="modal-overlay hidden">
+        <div class="modal-card" style="text-align:center;">
+            <h3>Scan to Pay</h3>
+            <p>Scan with WeChat to complete payment</p>
+            <div id="qrCodeContainer" style="margin:10px 0;"></div>
+            <p id="payStatusMsg" style="font-size:0.75rem;">Waiting for payment...</p>
+            <button id="closePayModalBtn" class="secondary">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Plan selection modal -->
+    <div id="planSelectModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Choose a Plan</h3>
+            <div id="planSelectorModal" class="plan-selector" style="display:flex; margin:12px 0;"></div>
+            <button id="confirmPlanBtn" class="primary" style="width:100%;">Confirm</button>
+            <button id="cancelPlanBtn" class="secondary" style="margin-top:8px; width:100%;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Edit final message modal -->
+    <div id="editFinalModal" class="modal-overlay hidden"><div class="modal-card"><h3>✉️ Edit Final Notice Email</h3><label>Final task termination notice content (to supervisor)</label><textarea id="editFinalMsg" rows="6" style="border-radius:16px;"></textarea><div style="display:flex; gap:10px; margin-top:12px;"><button class="secondary" id="editFinalCancelBtn">Cancel</button><button class="primary" id="editFinalSaveBtn">Save</button></div></div></div>
+
+    <!-- Phone input modal -->
+    <div id="phoneModal" class="modal-overlay hidden"><div class="modal-card"><h3>Enter Contact Phone</h3><p style="font-size:0.7rem;">Customer service will contact you via this number</p><div style="display:flex; gap:6px;"><select id="countryCode"><option value="+86">+86 (China)</option><option value="+1">+1 (USA)</option><option value="+44">+44 (UK)</option></select><input type="tel" id="phoneNumber" placeholder="Phone number"></div><div style="display:flex; gap:10px; margin-top:12px;"><button class="secondary" id="phoneCancelBtn">Cancel</button><button class="primary" id="phoneSaveBtn">Save</button></div></div></div>
+
+    <!-- Privacy / Terms modals -->
+    <div id="privacyModal" class="modal-overlay hidden"><div class="modal-card"><h3>🔒 Privacy Policy</h3><div id="privacyContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closePrivacyBtn" class="secondary" style="margin-top:10px;">Close</button></div></div>
+    <div id="termsModal" class="modal-overlay hidden"><div class="modal-card"><h3>📜 Terms of Service</h3><div id="termsContent" style="max-height:300px; overflow:auto; font-size:0.8rem;"></div><button id="closeTermsBtn" class="secondary" style="margin-top:10px;">Close</button></div></div>
 </div>
 
 <script>
 (function(){
-    // English texts
-    const i18n = {
-        sendCodeBtn: 'Get Code',
-        verifyAndEnter: 'Verify & Enter',
-        loginEmailRequired: 'Email required',
-        codeRequired: 'Code required',
-        codeSent: 'Verification code sent',
-        codeSendFailed: 'Failed to send code',
-        verifySuccess: 'Login successful',
-        verifyFailed: 'Verification failed',
-        apiError: 'Network error, please try again later',
-        selectPlanTitle: 'Please select a plan',
-        referralHint: 'Share this link, you will get reward when friend registers and pays',
-        renewBtn: 'Renew Plan',
-        expandAll: 'Expand All',
-        noticeTitle: '📢 System Notice',
-        statusNormal: 'Normal',
-        statusWarning: '⚠️ Warning',
-        statusFinal: '🔔 Final',
-        needConfirm: 'Need confirm',
-        noNeedConfirm: 'No confirm',
-        lastCheckinLabel: 'Last check-in: ',
-        noTasks: 'No tasks, create one',
-        never: 'Never',
-        confirmDelete: 'Delete this task?',
-        confirmSave: 'Save changes?',
-        taskNamePlaceholder: 'Task name',
-        pleaseEnterValidNumbers: 'Please enter valid days (Cycle>=1, Warning>=1, Final>Warning)',
-        phoneSavedHint: 'Saved phone: ',
-        phoneRequired: 'Phone number required',
-        phoneSaveSuccess: 'Phone saved',
-        finalMsgSaveSuccess: 'Final notice saved',
-        checkinSuccess: 'Check-in successful',
-        checkinFailed: 'Check-in failed',
-        taskSaveSuccess: 'Task saved',
-        taskSaveFailed: 'Save failed',
-        taskDeleteSuccess: 'Task deleted',
-        taskDeleteFailed: 'Delete failed',
-        autoCheckinSuccess: 'One-click check-in success, updated {count} tasks',
-        taskLimitReached: 'Task limit reached (7 max). Cannot create new task.',
-        confirmAutoCheckin: 'Mark all tasks as checked in today?',
-        manualCheckinBtn: 'Manual check-in',
-        saveTaskBtn: 'Save',
-        deleteBtn: 'Delete',
-        backToList: 'Back to Task List',
-        countryCodeChina: '+86 (China)',
-        countryCodeUS: '+1 (USA)',
-        countryCodeUK: '+44 (UK)',
-        paySuccessAutoSend: 'Payment successful, verification code sent to your email',
-        testAccountNoReferral: 'Test account no referral link',
-        copiedSuccess: 'Link copied',
-        copyFailed: 'Copy failed, please manually copy',
-        newUserHint: 'New user, please select a plan:',
-        privacyText: `<p><strong>Privacy Policy</strong></p><p>Content placeholder.</p>`,
-        termsText: `<p><strong>Terms of Service</strong></p><p>Content placeholder.</p>`
-    };
-
-    function t(key) { return i18n[key] || key; }
-
     function showToast(msg, isError=false){ let div=document.createElement('div'); div.className='toast'; div.innerText=msg; document.body.appendChild(div); setTimeout(()=>div.remove(),3000); }
     function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
     function formatDate(ts){
-        if(!ts) return t('never');
+        if(!ts) return 'Never';
         let num = Number(ts);
         if(isNaN(num)) return 'Invalid';
         if(num < 10000000000) num *= 1000;
         let d = new Date(num);
         return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     }
-    function renderCountryCodeOptions() {
-        const select = document.getElementById('countryCode');
-        if(!select) return;
-        select.innerHTML = [
-            { value:'+86', label:t('countryCodeChina') },
-            { value:'+1', label:t('countryCodeUS') },
-            { value:'+44', label:t('countryCodeUK') }
-        ].map(opt=>`<option value="${opt.value}">${opt.label}</option>`).join('');
-    }
 
-    let currentUser = null, currentTaskId = null, finalMessageCache = '', tasks = [], pendingEmail = null, pendingPlan = null, plansData = [], allCommissions = [], isExpanded = false, hiddenNoticeIds = [];
+    let currentUser = null, currentTaskId = null, finalMessageCache = '', tasks = [], pendingEmail = null, pendingPlan = null, payInterval = null, payTimeout = null, plansData = [], allCommissions = [], isExpanded = false, hiddenNoticeIds = [];
 
     async function apiFetch(url, options={}) {
         const res = await fetch(url, { ...options, credentials: 'include' });
@@ -315,7 +334,7 @@
             document.getElementById('taskListPage').classList.add('hidden');
             document.getElementById('taskEditPage').classList.add('hidden');
             document.getElementById('userCenterPage').classList.add('hidden');
-            showToast(t('verifyFailed'),true);
+            showToast('Session expired, please log in again',true);
             return null;
         }
         return res;
@@ -331,7 +350,7 @@
             if(!container) return;
             const active = notices.filter(n=>!hiddenNoticeIds.includes(n.id));
             if(!active.length){ container.innerHTML=''; return; }
-            container.innerHTML = active.map(n=>`<div class="notice-bar" data-id="${n.id}"><div class="notice-title"><span>${t('noticeTitle')}</span><button class="notice-close" onclick="closeNotice(${n.id})">✕</button></div><div class="notice-content">${escapeHtml(n.title)}<br>${escapeHtml(n.content).replace(/\n/g,'<br>')}</div></div>`).join('');
+            container.innerHTML = active.map(n=>`<div class="notice-bar" data-id="${n.id}"><div class="notice-title"><span>📢 System Notice</span><button class="notice-close" onclick="closeNotice(${n.id})">✕</button></div><div class="notice-content">${escapeHtml(n.title)}<br>${escapeHtml(n.content).replace(/\n/g,'<br>')}</div></div>`).join('');
         }catch(e){ console.error(e); }
     }
     window.closeNotice = function(id){
@@ -358,15 +377,26 @@
             return plansData;
         }catch(e){ return []; }
     }
+    
+    // Helper: convert cent to integer USD
+    function priceInUSD(priceCent) {
+        return Math.floor(priceCent / 100);
+    }
+    
+    function getPlanDisplayName(planId) {
+        if(planId === '1y') return '1 Year';
+        if(planId === '2y') return '2 Years';
+        if(planId === '3y') return '3 Years';
+        return planId;
+    }
+    
     function renderPlanSelector() {
         const container = document.getElementById('planSelector');
         if(!container||!plansData.length) return;
         container.innerHTML = plansData.map(p=>{
-            let yearLabel = '';
-            if(p.id === '1y') yearLabel = '/1 year';
-            else if(p.id === '2y') yearLabel = '/2 years';
-            else if(p.id === '3y') yearLabel = '/3 years';
-            const priceText = `${p.price_yuan} USD <br> ${yearLabel}`;
+            const displayName = getPlanDisplayName(p.id);
+            const usd = priceInUSD(p.price);
+            const priceText = `${usd} USD / ${displayName}`;
             return `<div class="plan-option ${pendingPlan===p.id?'selected':''}" data-plan="${p.id}"><div class="plan-price">${priceText}</div></div>`;
         }).join('');
         container.style.display='flex';
@@ -375,41 +405,80 @@
                 document.querySelectorAll('#planSelector .plan-option').forEach(opt=>opt.classList.remove('selected'));
                 el.classList.add('selected');
                 pendingPlan = el.getAttribute('data-plan');
+                const selected = plansData.find(p=>p.id===pendingPlan);
+                if(selected) document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(selected.id)} ${priceInUSD(selected.price)} USD<br>Referral Reward: ${priceInUSD(selected.reward)} USD`;
             });
         });
         if(!pendingPlan && plansData[0]){
             pendingPlan = plansData[0].id;
             document.querySelector('#planSelector .plan-option')?.classList.add('selected');
+            document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(plansData[0].id)} ${priceInUSD(plansData[0].price)} USD<br>Referral Reward: ${priceInUSD(plansData[0].reward)} USD`;
         }
     }
+    
     function showPlanSelectModal(callback){
         const modal = document.getElementById('planSelectModal');
-        if(!modal) return;
         const container = document.getElementById('planSelectorModal');
         if(!container||!plansData.length) return;
-        // 修改货币单位为 USD
-        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${p.price_yuan} USD</div><div class="plan-name" style="display:none;">${p.name}</div><div class="plan-reward" style="display:none;">${t('referralHint')} ${p.reward_yuan} USD</div></div>`).join('');
+        container.innerHTML = plansData.map(p=>`<div class="plan-option" data-plan="${p.id}"><div class="plan-price">${priceInUSD(p.price)} USD</div><div class="plan-name" style="display:none;">${getPlanDisplayName(p.id)}</div><div class="plan-reward" style="display:none;">Reward ${priceInUSD(p.reward)} USD</div></div>`).join('');
         let selectedPlan = plansData[0].id;
         container.querySelectorAll('.plan-option').forEach(el=>{
             el.addEventListener('click',()=>{
                 container.querySelectorAll('.plan-option').forEach(opt=>opt.classList.remove('selected'));
                 el.classList.add('selected');
                 selectedPlan = el.getAttribute('data-plan');
+                const selected = plansData.find(p=>p.id===selectedPlan);
+                if(selected) document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(selected.id)} ${priceInUSD(selected.price)} USD<br>Referral Reward: ${priceInUSD(selected.reward)} USD`;
             });
         });
         container.querySelector('.plan-option')?.classList.add('selected');
+        const defaultPlan = plansData[0];
+        if(defaultPlan) document.getElementById('modalPlanInfo').innerHTML = `Plan: ${getPlanDisplayName(defaultPlan.id)} ${priceInUSD(defaultPlan.price)} USD<br>Referral Reward: ${priceInUSD(defaultPlan.reward)} USD`;
         modal.classList.remove('hidden');
         const confirmBtn = document.getElementById('confirmPlanBtn'), cancelBtn = document.getElementById('cancelPlanBtn');
         const handler = ()=>{ modal.classList.add('hidden'); if(callback) callback(selectedPlan); confirmBtn.removeEventListener('click',handler); cancelBtn.removeEventListener('click',cancelHandler); };
         const cancelHandler = ()=>{ modal.classList.add('hidden'); confirmBtn.removeEventListener('click',handler); cancelBtn.removeEventListener('click',cancelHandler); };
-        if(confirmBtn && cancelBtn) {
-            confirmBtn.addEventListener('click',handler);
-            cancelBtn.addEventListener('click',cancelHandler);
-        }
+        confirmBtn.addEventListener('click',handler);
+        cancelBtn.addEventListener('click',cancelHandler);
     }
 
-    function showPaymentNotAvailable() {
-        alert('Online payment is not yet available in your area. Please contact the administrator or your recommender.');
+    async function createWechatOrder(email, orderNo){
+        if(!pendingPlan){ showToast('Please select a plan',true); return; }
+        try{
+            const res = await fetch('/api/create-wechat-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,orderNo,plan:pendingPlan})});
+            const data = await res.json();
+            if(res.ok){
+                if(data.h5_url) window.location.href = data.h5_url;
+                else if(data.qrCode) showPayModal(data.qrCode, data.orderNo, email);
+                else showToast('WeChat order error',true);
+            } else showToast(data.error||'WeChat order failed',true);
+        }catch(e){ showToast('Network error, please try again later',true); }
+    }
+    async function createAlipayOrder(email){
+        if(!pendingPlan){ showToast('Please select a plan',true); return; }
+        try{
+            const res = await fetch('/api/create-alipay-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan:pendingPlan})});
+            const data = await res.json();
+            if(res.ok && data.payUrl){
+                window.location.href = data.payUrl;
+            } else showToast(data.error||'Alipay order failed',true);
+        }catch(e){ showToast('Network error, please try again later',true); }
+    }
+    function showPayModal(qrBase64, orderNo, email){
+        const modal = document.getElementById('payModal');
+        document.getElementById('qrCodeContainer').innerHTML = `<img src="${qrBase64}" style="width:180px; max-width:80%;">`;
+        modal.classList.remove('hidden');
+        if(payInterval) clearInterval(payInterval);
+        if(payTimeout) clearTimeout(payTimeout);
+        payTimeout = setTimeout(()=>{ if(payInterval) clearInterval(payInterval); document.getElementById('payStatusMsg').innerText='Payment timeout. If you have paid, please click "Get Code" again.'; showToast('If paid, please request code again'); },5*60*1000);
+        payInterval = setInterval(async()=>{
+            try{
+                const res = await fetch(`/api/pay/status/${orderNo}`);
+                const data = await res.json();
+                if(data.status==='paid'){ clearInterval(payInterval); clearTimeout(payTimeout); document.getElementById('payStatusMsg').innerText='Payment successful!'; showToast('Payment successful, verification code sent to your email'); setTimeout(()=>modal.classList.add('hidden'),1500); }
+                else if(data.status==='expired'){ clearInterval(payInterval); clearTimeout(payTimeout); document.getElementById('payStatusMsg').innerText='Order expired'; setTimeout(()=>modal.classList.add('hidden'),2000); }
+            }catch(e){}
+        },3000);
     }
 
     // Login page interactions
@@ -421,7 +490,7 @@
             planSelector.style.display='none';
             newUserHint.style.display='none';
             hintDiv.style.display='block';
-            hintDiv.innerText = '✅ You have an active subscription, get verification code directly';
+            hintDiv.innerText = '✅ You have an active subscription. You can get a verification code directly.';
         } else {
             if(plansData.length){ renderPlanSelector(); planSelector.style.display='flex'; }
             newUserHint.style.display='block';
@@ -431,15 +500,15 @@
 
     document.getElementById('sendLoginCodeBtn').addEventListener('click', async()=>{
         const email = document.getElementById('loginEmail').value.trim();
-        if(!email){ showToast(t('loginEmailRequired'),true); return; }
+        if(!email){ showToast('Please enter email',true); return; }
         const hasActive = await checkSubscriptionStatus(email);
         let plan = null;
         if(!hasActive){
-            if(!pendingPlan && plansData.length>0){ showToast(t('selectPlanTitle'),true); return; }
+            if(!pendingPlan && plansData.length>0){ showToast('Please select a plan',true); return; }
             plan = pendingPlan;
         }
         if(!hasActive){
-            if(!confirm(`Please confirm your email: ${email}\n\nAfter payment, email cannot be changed. Continue?`)) return;
+            if(!confirm(`Please confirm your email: ${email}\n\nAfter payment the email cannot be changed. Continue?`)) return;
         }
         const btn = document.getElementById('sendLoginCodeBtn');
         btn.disabled=true; btn.innerText='...';
@@ -448,29 +517,31 @@
             const res = await fetch('/api/send-login-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan,ref:refParam})});
             const data = await res.json();
             if(res.status===402){
-                showPaymentNotAvailable();
+                pendingEmail = email;
+                document.getElementById('methodModal').classList.remove('hidden');
             } else if(res.ok){
-                showToast(t('codeSent'));
-                if(data.alreadyPaid) showToast('Verification code sent to your email');
+                showToast('Verification code sent');
+                if(data.alreadyPaid) showToast('Code sent to your email');
                 else if(data.needPay){
-                    showPaymentNotAvailable();
+                    pendingEmail = email;
+                    document.getElementById('methodModal').classList.remove('hidden');
                 }
-            } else showToast(data.error||t('codeSendFailed'),true);
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('sendCodeBtn'); }
+            } else showToast(data.error||'Failed to send code',true);
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='Get Code'; }
     });
 
     document.getElementById('verifyAndEnterBtn').addEventListener('click', async()=>{
         const email = document.getElementById('loginEmail').value.trim();
         const code = document.getElementById('loginCode').value.trim();
-        if(!email||!code){ showToast(t('loginEmailRequired')+'/'+t('codeRequired'),true); return; }
+        if(!email||!code){ showToast('Please enter email and code',true); return; }
         const btn = document.getElementById('verifyAndEnterBtn');
         btn.disabled=true; btn.innerText='...';
         try{
             const res = await fetch('/api/verify-login-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code}),credentials:'include'});
             const data = await res.json();
             if(res.ok){
-                showToast(t('verifySuccess'));
+                showToast('Login successful');
                 currentUser = { email };
                 localStorage.setItem('mind_user',JSON.stringify(currentUser));
                 document.getElementById('splashPage').classList.add('hidden');
@@ -479,33 +550,33 @@
                 hiddenNoticeIds=[];
             } else {
                 if(data.error && data.error.includes('expired')){
-                    if(confirm('Subscription expired, would you like to renew?')){
+                    if(confirm('Your subscription has expired. Would you like to renew now?')){
                         showPlanSelectModal((selectedPlan)=>{
                             pendingPlan=selectedPlan;
                             pendingEmail=email;
-                            showPaymentNotAvailable();
+                            document.getElementById('methodModal').classList.remove('hidden');
                         });
                     }
-                } else showToast(data.error||t('verifyFailed'),true);
+                } else showToast(data.error||'Verification failed',true);
             }
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('verifyAndEnter'); }
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='Verify & Enter'; }
     });
 
     document.getElementById('switchAccountBtn').addEventListener('click', async()=>{
         await fetch('/api/logout',{method:'POST',credentials:'include'});
         localStorage.removeItem('mind_user');
         currentUser=null;
-        document.getElementById('splashPage').classList.remove('hidden');
         document.getElementById('taskListPage').classList.add('hidden');
         document.getElementById('taskEditPage').classList.add('hidden');
         document.getElementById('userCenterPage').classList.add('hidden');
+        document.getElementById('splashPage').classList.remove('hidden');
         document.getElementById('loginEmail').value='';
         document.getElementById('loginCode').value='';
         showToast('Logged out');
     });
 
-    // User Center
+    // User center
     document.getElementById('userCenterBtn').addEventListener('click', async()=>{
         document.getElementById('taskListPage').classList.add('hidden');
         document.getElementById('userCenterPage').classList.remove('hidden');
@@ -521,32 +592,99 @@
     document.getElementById('openCodeMakerBtn').addEventListener('click',()=>window.open('./codemaker.html','_blank'));
     document.getElementById('copyReferralBtn').addEventListener('click',()=>{
         const linkText = document.getElementById('referralLinkText').innerText;
-        if(!linkText||linkText===t('testAccountNoReferral')) return showToast('No valid referral link',true);
-        navigator.clipboard.writeText(linkText).then(()=>showToast(t('copiedSuccess'))).catch(()=>showToast(t('copyFailed'),true));
+        if(!linkText||linkText==='Test account cannot generate referral link') return showToast('No valid referral link',true);
+        navigator.clipboard.writeText(linkText).then(()=>showToast('Link copied')).catch(()=>showToast('Copy failed, please manually copy',true));
+    });
+
+    document.getElementById('savePaymentAccountBtn').addEventListener('click', async () => {
+        const account = document.getElementById('paymentAccountInput').value.trim();
+        const type = document.getElementById('paymentAccountType').value;
+        if (!account) {
+            showToast('Please enter payment account', true);
+            return;
+        }
+        if (!confirm('Please ensure payment information is correct. The platform is not responsible for any failure to distribute rewards due to inaccurate information.')) return;
+        const btn = document.getElementById('savePaymentAccountBtn');
+        btn.disabled = true;
+        try {
+            const res = await apiFetch('/api/user/update-payment-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ payment_account_type: type, payment_account: account })
+            });
+            if (res && res.ok) {
+                showToast('Payment account saved');
+            } else {
+                showToast('Save failed', true);
+            }
+        } catch(e) {
+            showToast('Network error, please try again later', true);
+        } finally {
+            btn.disabled = false;
+        }
     });
 
     async function loadUserProfile(){
-        try{
+        try {
             const res = await apiFetch('/api/user/profile');
             if(!res) return;
             const data = await res.json();
-            document.getElementById('referralLinkText').innerText = data.referral_link || t('testAccountNoReferral');
+            document.getElementById('referralLinkText').innerText = data.referral_link || 'Test account cannot generate referral link';
             document.getElementById('commissionBalance').innerText = (data.commission_balance/100).toFixed(2) + ' USD';
-            const subDiv = document.getElementById('subscriptionInfo'), renewContainer = document.getElementById('renewBtnContainer');
-            if(data.days_left>0){
-                subDiv.innerHTML = `📅 Subscription remaining <strong>${data.days_left}</strong> days, Plan: ${data.plan_type}`;
-                renewContainer.innerHTML = `<button id="renewSubscriptionBtn" class="small btn-renew">${t('renewBtn')}</button>`;
-                document.getElementById('renewSubscriptionBtn')?.addEventListener('click',()=>{
-                    showPlanSelectModal((selectedPlan)=>{ pendingPlan=selectedPlan; pendingEmail=currentUser.email; showPaymentNotAvailable(); });
+
+            const subDiv = document.getElementById('subscriptionInfo');
+            const renewContainer = document.getElementById('renewBtnContainer');
+            
+            // Create wrapper container (only once)
+            let rowContainer = document.getElementById('subscriptionRow');
+            if (!rowContainer) {
+                rowContainer = document.createElement('div');
+                rowContainer.id = 'subscriptionRow';
+                rowContainer.className = 'subscription-row';
+                const parent = subDiv.parentNode;
+                parent.insertBefore(rowContainer, subDiv);
+                rowContainer.appendChild(subDiv);
+                rowContainer.appendChild(renewContainer);
+                subDiv.classList.add('subscription-info');
+                renewContainer.classList.add('renew-btn-wrapper');
+            }
+
+            if (data.days_left > 0) {
+                subDiv.innerHTML = `📅 Subscription remaining <strong>${data.days_left}</strong> days, Plan: ${getPlanDisplayName(data.plan_type)}`;
+                renewContainer.innerHTML = `<button id="renewSubscriptionBtn" class="small btn-renew">Renew</button>`;
+                document.getElementById('renewSubscriptionBtn')?.addEventListener('click', () => {
+                    showPlanSelectModal((selectedPlan) => { 
+                        pendingPlan = selectedPlan; 
+                        pendingEmail = currentUser.email; 
+                        document.getElementById('methodModal').classList.remove('hidden'); 
+                    });
                 });
-            } else if(data.days_left===0 && data.subscription_expires_at){
+            } else if (data.days_left === 0 && data.subscription_expires_at) {
                 subDiv.innerHTML = `⚠️ Subscription expired, please renew`;
-                renewContainer.innerHTML = `<button id="renewSubscriptionBtn" class="small btn-renew">${t('renewBtn')}</button>`;
-                document.getElementById('renewSubscriptionBtn')?.addEventListener('click',()=>{
-                    showPlanSelectModal((selectedPlan)=>{ pendingPlan=selectedPlan; pendingEmail=currentUser.email; showPaymentNotAvailable(); });
+                renewContainer.innerHTML = `<button id="renewSubscriptionBtn" class="small btn-renew">Renew</button>`;
+                document.getElementById('renewSubscriptionBtn')?.addEventListener('click', () => {
+                    showPlanSelectModal((selectedPlan) => { 
+                        pendingPlan = selectedPlan; 
+                        pendingEmail = currentUser.email; 
+                        document.getElementById('methodModal').classList.remove('hidden'); 
+                    });
                 });
-            } else { subDiv.innerHTML = `No active subscription`; renewContainer.innerHTML = ''; }
-        }catch(e){ showToast(t('apiError'),true); }
+            } else {
+                subDiv.innerHTML = `No active subscription`;
+                renewContainer.innerHTML = '';
+            }
+            
+            if (data.payment_account_type) {
+                document.getElementById('paymentAccountType').value = data.payment_account_type;
+            }
+            if (data.payment_account) {
+                document.getElementById('paymentAccountInput').value = data.payment_account;
+            } else {
+                document.getElementById('paymentAccountInput').value = '';
+            }
+        } catch(e){ 
+            showToast('Network error, please try again later', true); 
+        }
     }
 
     async function loadUserCommissions(){
@@ -555,25 +693,25 @@
             if(!res) return;
             allCommissions = await res.json();
             renderCommissionList(false);
-        }catch(e){ showToast(t('apiError'),true); }
+        }catch(e){ showToast('Network error, please try again later',true); }
     }
     function renderCommissionList(expanded){
         const container = document.getElementById('commissionList'), toggleBtn = document.getElementById('toggleCommissionBtn');
-        if(!allCommissions.length){ container.innerHTML='<p>No commission records</p>'; toggleBtn.style.display='none'; return; }
+        if(!allCommissions.length){ container.innerHTML='<p>No reward records</p>'; toggleBtn.style.display='none'; return; }
         const displayCount = expanded ? allCommissions.length : Math.min(3,allCommissions.length);
         const shown = allCommissions.slice(0,displayCount);
         let html = '<table class="commission-table"><thead><tr><th>Referred User</th><th>Amount (USD)</th><th>Status</th><th>Time</th></tr></thead><tbody>';
         for(let c of shown){
             let statusText = c.status==='pending'?'Pending':'Paid';
-            let amountYuan = (c.amount/100).toFixed(2);
-            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountYuan}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
+            let amountUSD = (c.amount/100).toFixed(2);
+            html+=`<tr><td style="max-width:120px; overflow:hidden;">${escapeHtml(c.user_email)}</td><td>${amountUSD}</td><td>${statusText}</td><td>${formatDate(c.created_at)}</td></tr>`;
         }
         html+='</tbody></table>';
         container.innerHTML = html;
         if(allCommissions.length>3){
             toggleBtn.style.display='inline-block';
-            toggleBtn.innerText = expanded ? 'Collapse' : t('expandAll');
-            toggleBtn.onclick = ()=>{ isExpanded=!isExpanded; renderCommissionList(isExpanded); toggleBtn.innerText = isExpanded ? 'Collapse' : t('expandAll'); };
+            toggleBtn.innerText = expanded ? 'Collapse' : 'Expand All';
+            toggleBtn.onclick = ()=>{ isExpanded=!isExpanded; renderCommissionList(isExpanded); toggleBtn.innerText = isExpanded ? 'Collapse' : 'Expand All'; };
         } else toggleBtn.style.display='none';
     }
 
@@ -585,18 +723,18 @@
             tasks = await res.json();
             const container = document.getElementById('taskListContainer');
             container.innerHTML = '';
-            if(tasks.length===0){ container.innerHTML=`<div style="padding:20px; text-align:center;">${t('noTasks')}</div>`; return; }
+            if(tasks.length===0){ container.innerHTML=`<div style="padding:20px; text-align:center;">No tasks, click below to create</div>`; return; }
             for(const task of tasks){
                 const statusClass = task.status==='warning'?'warning':(task.status==='final'?'final':'normal');
-                const statusText = task.status==='warning'?t('statusWarning'):(task.status==='final'?t('statusFinal'):t('statusNormal'));
-                const humanText = task.need_human_confirm ? t('needConfirm') : t('noNeedConfirm');
+                const statusText = task.status==='warning'?'⚠️ Warning':(task.status==='final'?'🔔 Final Notice':'Normal');
+                const humanText = task.need_human_confirm ? 'Need confirm' : 'Auto';
                 const card = document.createElement('div');
                 card.className='card';
-                card.innerHTML = `<div><strong>${escapeHtml(task.name)}</strong></div><div style="display:flex; justify-content:space-between; margin-top:6px;"><span class="status-badge ${statusClass}">${statusText}</span><span class="human-badge ${task.need_human_confirm?'need':'not-need'}">${humanText}</span></div><div class="recent-checkin">${t('lastCheckinLabel')} ${formatDate(task.last_checkin)}</div>`;
+                card.innerHTML = `<div><strong>${escapeHtml(task.name)}</strong></div><div style="display:flex; justify-content:space-between; margin-top:6px;"><span class="status-badge ${statusClass}">${statusText}</span><span class="human-badge ${task.need_human_confirm?'need':'not-need'}">${humanText}</span></div><div class="recent-checkin">Last check-in: ${formatDate(task.last_checkin)}</div>`;
                 card.addEventListener('click',()=>{ currentTaskId=task.id; loadTaskData(task.id); document.getElementById('taskListPage').classList.add('hidden'); document.getElementById('taskEditPage').classList.remove('hidden'); });
                 container.appendChild(card);
             }
-        } catch(e){ showToast(t('apiError'),true); }
+        } catch(e){ showToast('Network error, please try again later',true); }
     }
 
     async function loadTaskData(id){
@@ -613,19 +751,19 @@
             document.getElementById('editWarningMessage').value = task.warning_message || '';
             document.getElementById('needHumanConfirmCheckbox').checked = task.need_human_confirm;
             finalMessageCache = task.final_message || '';
-            document.getElementById('editLastCheckin').innerHTML = `${t('lastCheckinLabel')} ${formatDate(task.last_checkin)}`;
+            document.getElementById('editLastCheckin').innerHTML = `Last check-in: ${formatDate(task.last_checkin)}`;
             const statusEl = document.getElementById('editTaskStatus');
             statusEl.className = `status-badge ${task.status}`;
-            statusEl.innerText = task.status==='warning'?t('statusWarning'):(task.status==='final'?t('statusFinal'):t('statusNormal'));
+            statusEl.innerText = task.status==='warning'?'⚠️ Warning':(task.status==='final'?'🔔 Final Notice':'Normal');
             if(task.need_human_confirm && task.contact_phone){
                 localStorage.setItem('tempPhone',task.contact_phone);
-                document.getElementById('phoneHint').innerText = t('phoneSavedHint') + task.contact_phone;
+                document.getElementById('phoneHint').innerText = 'Saved phone: ' + task.contact_phone;
                 prefillPhoneModal(task.contact_phone);
             } else if(!task.need_human_confirm){
                 localStorage.removeItem('tempPhone');
                 document.getElementById('phoneHint').innerText = '';
             } else document.getElementById('phoneHint').innerText = '';
-        }catch(e){ showToast(t('apiError'),true); }
+        }catch(e){ showToast('Network error, please try again later',true); }
     }
 
     function prefillPhoneModal(fullPhone){
@@ -640,23 +778,23 @@
     }
 
     document.getElementById('autoCheckinAllBtn').addEventListener('click', async()=>{
-        if(!confirm(t('confirmAutoCheckin'))) return;
+        if(!confirm('Are you sure you want to mark all tasks as "checked in today"?')) return;
         const btn = document.getElementById('autoCheckinAllBtn');
         btn.disabled=true; btn.innerText='...';
         try{
             const res = await apiFetch('/api/auto-checkin',{method:'POST'});
             if(res && res.ok){
                 const data = await res.json();
-                showToast(t('autoCheckinSuccess').replace('{count}',data.count));
+                showToast(`One-click check-in successful, updated ${data.count} tasks`);
                 tasks = data.tasks;
                 renderTaskList();
-            } else showToast(t('checkinFailed'),true);
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('autoCheckinAll'); }
+            } else showToast('Check-in failed',true);
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='One-click Check-in'; }
     });
 
     document.getElementById('addNewTaskBtn').addEventListener('click', async()=>{
-        if(tasks.length>=7){ showToast(t('taskLimitReached'),true); return; }
+        if(tasks.length>=7){ showToast('Task limit reached (7 max). Cannot create new task.',true); return; }
         currentTaskId=null;
         document.getElementById('editTaskName').value='';
         document.getElementById('editCycleDays').value='1';
@@ -666,7 +804,7 @@
         document.getElementById('editFinalEmail').value='';
         document.getElementById('editWarningMessage').value='';
         document.getElementById('needHumanConfirmCheckbox').checked=false;
-        document.getElementById('editLastCheckin').innerHTML=t('lastCheckinLabel')+t('never');
+        document.getElementById('editLastCheckin').innerHTML='Last check-in: Never';
         finalMessageCache='';
         document.getElementById('phoneHint').innerText='';
         localStorage.removeItem('tempPhone');
@@ -680,22 +818,22 @@
         btn.disabled=true; btn.innerText='...';
         try{
             const res = await apiFetch(`/api/tasks/${currentTaskId}/checkin`,{method:'POST'});
-            if(res && res.ok){ showToast(t('checkinSuccess')); loadTaskData(currentTaskId); renderTaskList(); }
-            else showToast(t('checkinFailed'),true);
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('manualCheckinBtn'); }
+            if(res && res.ok){ showToast('Check-in successful'); loadTaskData(currentTaskId); renderTaskList(); }
+            else showToast('Check-in failed',true);
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='Manual Check-in'; }
     });
 
     function validateTaskDays(){
         let warning = parseInt(document.getElementById('editWarningDays').value);
         let final = parseInt(document.getElementById('editFinalDays').value);
-        if(final <= warning){ showToast(t('pleaseEnterValidNumbers'),true); return false; }
+        if(final <= warning){ showToast('Final days must be greater than warning days',true); return false; }
         return true;
     }
 
     document.getElementById('editSaveTaskBtn').addEventListener('click', async()=>{
         if(!validateTaskDays()) return;
-        if(!confirm(t('confirmSave'))) return;
+        if(!confirm('Save task changes?')) return;
         const taskData = {
             name: document.getElementById('editTaskName').value.trim(),
             cycle_days: parseInt(document.getElementById('editCycleDays').value),
@@ -706,10 +844,10 @@
             final_message: finalMessageCache,
             need_human_confirm: document.getElementById('needHumanConfirmCheckbox').checked,
         };
-        if(!taskData.name){ showToast(t('taskNamePlaceholder')+' cannot be empty',true); return; }
+        if(!taskData.name){ showToast('Task name cannot be empty',true); return; }
         if(taskData.need_human_confirm){
             let phone = localStorage.getItem('tempPhone');
-            if(!phone){ showToast('Please enter contact phone number first',true); return; }
+            if(!phone){ showToast('Please enter contact phone first',true); return; }
             taskData.contact_phone = phone;
         }
         const btn = document.getElementById('editSaveTaskBtn');
@@ -718,36 +856,36 @@
             const url = currentTaskId ? `/api/tasks/${currentTaskId}` : '/api/tasks';
             const method = currentTaskId ? 'PUT' : 'POST';
             const res = await apiFetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(taskData) });
-            if(res && res.ok){ showToast(t('taskSaveSuccess')); localStorage.removeItem('tempPhone'); document.getElementById('taskEditPage').classList.add('hidden'); document.getElementById('taskListPage').classList.remove('hidden'); renderTaskList(); }
-            else showToast(t('taskSaveFailed'),true);
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('saveTaskBtn'); }
+            if(res && res.ok){ showToast('Task saved successfully'); localStorage.removeItem('tempPhone'); document.getElementById('taskEditPage').classList.add('hidden'); document.getElementById('taskListPage').classList.remove('hidden'); renderTaskList(); }
+            else showToast('Task save failed',true);
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='Save Task'; }
     });
 
     document.getElementById('editDeleteTaskBtn').addEventListener('click', async()=>{
-        if(!currentTaskId || !confirm(t('confirmDelete'))) return;
+        if(!currentTaskId || !confirm('Delete this task?')) return;
         const btn = document.getElementById('editDeleteTaskBtn');
         btn.disabled=true; btn.innerText='...';
         try{
             const res = await apiFetch(`/api/tasks/${currentTaskId}`,{method:'DELETE'});
-            if(res && res.ok){ showToast(t('taskDeleteSuccess')); document.getElementById('taskEditPage').classList.add('hidden'); document.getElementById('taskListPage').classList.remove('hidden'); renderTaskList(); }
-            else showToast(t('taskDeleteFailed'),true);
-        } catch(e){ showToast(t('apiError'),true); }
-        finally{ btn.disabled=false; btn.innerText=t('deleteBtn'); }
+            if(res && res.ok){ showToast('Task deleted successfully'); document.getElementById('taskEditPage').classList.add('hidden'); document.getElementById('taskListPage').classList.remove('hidden'); renderTaskList(); }
+            else showToast('Task deletion failed',true);
+        } catch(e){ showToast('Network error, please try again later',true); }
+        finally{ btn.disabled=false; btn.innerText='Delete Task'; }
     });
 
     document.getElementById('editFinalBtn').addEventListener('click',()=>{ document.getElementById('editFinalMsg').value=finalMessageCache; document.getElementById('editFinalModal').classList.remove('hidden'); });
-    document.getElementById('editFinalSaveBtn').addEventListener('click',()=>{ finalMessageCache=document.getElementById('editFinalMsg').value; showToast(t('finalMsgSaveSuccess')); document.getElementById('editFinalModal').classList.add('hidden'); });
+    document.getElementById('editFinalSaveBtn').addEventListener('click',()=>{ finalMessageCache=document.getElementById('editFinalMsg').value; showToast('Final notice saved'); document.getElementById('editFinalModal').classList.add('hidden'); });
     document.getElementById('editFinalCancelBtn').addEventListener('click',()=>{ document.getElementById('editFinalModal').classList.add('hidden'); });
     document.getElementById('phoneSaveBtn').addEventListener('click',()=>{
         const phone = document.getElementById('phoneNumber').value.trim();
         const code = document.getElementById('countryCode').value;
-        if(!phone){ showToast(t('phoneRequired'),true); return; }
+        if(!phone){ showToast('Please enter phone number',true); return; }
         const fullPhone = code + ' ' + phone;
         localStorage.setItem('tempPhone', fullPhone);
-        showToast(t('phoneSaveSuccess'));
+        showToast('Phone saved');
         document.getElementById('phoneModal').classList.add('hidden');
-        if(document.getElementById('needHumanConfirmCheckbox').checked) document.getElementById('phoneHint').innerText = t('phoneSavedHint') + fullPhone;
+        if(document.getElementById('needHumanConfirmCheckbox').checked) document.getElementById('phoneHint').innerText = 'Saved phone: ' + fullPhone;
     });
     document.getElementById('needHumanConfirmCheckbox').addEventListener('change',(e)=>{
         if(e.target.checked){
@@ -762,22 +900,23 @@
     document.getElementById('phoneCancelBtn').addEventListener('click',()=>{ document.getElementById('phoneModal').classList.add('hidden'); });
     document.getElementById('backToTaskListBtn').addEventListener('click',()=>{ document.getElementById('taskEditPage').classList.add('hidden'); document.getElementById('taskListPage').classList.remove('hidden'); renderTaskList(); });
 
-    // Modals close
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{ overlay.addEventListener('click',(e)=>{ if(e.target===overlay) overlay.classList.add('hidden'); }); });
     document.getElementById('closePrivacyBtn').addEventListener('click',()=>{ document.getElementById('privacyModal').classList.add('hidden'); });
     document.getElementById('closeTermsBtn').addEventListener('click',()=>{ document.getElementById('termsModal').classList.add('hidden'); });
     document.getElementById('showPrivacyLink').addEventListener('click',(e)=>{ e.preventDefault(); document.getElementById('privacyModal').classList.remove('hidden'); });
     document.getElementById('showTermsLink').addEventListener('click',(e)=>{ e.preventDefault(); document.getElementById('termsModal').classList.remove('hidden'); });
 
-    document.getElementById('privacyContent').innerHTML = t('privacyText');
-    document.getElementById('termsContent').innerHTML = t('termsText');
+    document.getElementById('chooseWechatBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); if(pendingEmail) createWechatOrder(pendingEmail, ''); });
+    document.getElementById('chooseAlipayBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); if(pendingEmail) createAlipayOrder(pendingEmail); });
+    document.getElementById('closeMethodModalBtn').addEventListener('click',()=>{ document.getElementById('methodModal').classList.add('hidden'); pendingEmail=null; });
+    document.getElementById('closePayModalBtn').addEventListener('click',()=>{ if(payInterval) clearInterval(payInterval); if(payTimeout) clearTimeout(payTimeout); document.getElementById('payModal').classList.add('hidden'); });
 
     async function handleAlipayReturn(){
         const urlParams = new URLSearchParams(window.location.search);
         const payResult = urlParams.get('pay_result'), orderNo = urlParams.get('orderNo');
         if(payResult === 'success' && orderNo){
             window.history.replaceState({}, document.title, window.location.pathname);
-            showToast(t('paySuccessAutoSend'));
+            showToast('Payment successful, confirming order...');
             for(let i=0;i<15;i++){
                 try{
                     const res = await fetch(`/api/pay/status/${orderNo}`);
@@ -790,7 +929,6 @@
         }
     }
 
-    renderCountryCodeOptions();
     loadPlans().then(()=>{
         const urlParams = new URLSearchParams(location.search);
         const hasRef = urlParams.has('ref');
@@ -813,6 +951,9 @@
             document.getElementById('splashPage').classList.remove('hidden');
         }
         handleAlipayReturn();
+        // English privacy & terms (short version, can be expanded)
+        document.getElementById('privacyContent').innerHTML = '<p><strong>Privacy Policy</strong></p><p>We value your privacy...</p>';
+        document.getElementById('termsContent').innerHTML = '<p><strong>Terms of Service</strong></p><p>By using this service you agree to our terms...</p>';
     });
 })();
 </script>
