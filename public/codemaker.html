@@ -3,407 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>灵动二维码 · 双语版</title>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@0.0.2/qrcode.min.js"></script>
+    <title>灵动二维码 · 自适应版本</title>
+    <!-- 使用可靠的 qrcode 库，自动版本选择，清晰扫码 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        body {
-            font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', Roboto, Helvetica, Arial, sans-serif;
-            background: #f2f6fb;
-            padding: 12px;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .card {
-            max-width: 540px;
-            width: 100%;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 28px;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
-            overflow: hidden;
-            padding: 16px;
-            position: relative;
-        }
-        /* 语言切换栏 - 左上角 */
-        .lang-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-            justify-content: flex-start;
-        }
-        .lang-btn {
-            background: #eef2fa;
-            border: none;
-            font-size: 0.7rem;
-            font-weight: 500;
-            padding: 4px 12px;
-            border-radius: 40px;
-            cursor: pointer;
-            color: #2c6280;
-            transition: 0.1s;
-        }
-        .lang-btn.active {
-            background: #cae0f5;
-            color: #1e4a76;
-            font-weight: 600;
-        }
-        .lang-btn:active {
-            transform: scale(0.96);
-        }
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 620;
-            text-align: center;
-            margin-bottom: 2px;
-            background: linear-gradient(135deg, #1f3b4c, #2c6285);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-        .sub {
-            text-align: center;
-            font-size: 0.68rem;
-            color: #7c8ba0;
-            margin-bottom: 14px;
-            border-bottom: 1px solid #eef3fc;
-            padding-bottom: 8px;
-        }
-        .form-group {
-            margin-bottom: 12px;
-        }
-        label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.72rem;
-            font-weight: 500;
-            color: #2c4a6e;
-            margin-bottom: 4px;
-        }
-        textarea {
-            width: 100%;
-            padding: 9px 12px;
-            font-size: 0.88rem;
-            border: 1.5px solid #e6edf4;
-            border-radius: 20px;
-            background: #ffffff;
-            font-family: inherit;
-            outline: none;
-            resize: vertical;
-            min-height: 74px;
-        }
-        textarea::placeholder {
-            color: #bbbdc2;
-            font-weight: 400;
-            font-size: 0.85rem;
-        }
-        textarea:focus {
-            border-color: #8bb4e6;
-            box-shadow: 0 0 0 3px rgba(100, 140, 200, 0.1);
-        }
-        .settings-row {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-        .setting-card {
-            flex: 1;
-            background: #fbfdff;
-            border: 1px solid #edf2f8;
-            border-radius: 20px;
-            padding: 6px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .setting-label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.7rem;
-            font-weight: 500;
-            color: #2c5a7a;
-            white-space: nowrap;
-        }
-        .setting-label span:first-child {
-            font-size: 0.8rem;
-        }
-        .setting-card input {
-            width: 96px;
-            padding: 6px 4px;
-            font-size: 0.8rem;
-            border: 1px solid #e2ecf5;
-            border-radius: 28px;
-            background: white;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .setting-card input[type="color"] {
-            width: 96px;
-            height: 34px;
-            padding: 2px;
-            border-radius: 28px;
-            cursor: pointer;
-        }
-        .logo-section {
-            margin: 8px 0 10px;
-        }
-        .logo-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.72rem;
-            font-weight: 500;
-            color: #2c4a6e;
-            margin-bottom: 6px;
-        }
-        /* 新布局：文件名区域占1/2，按钮区域占1/2，两个按钮各占一半 */
-        .logo-flex {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #fbfdff;
-            border: 1px solid #e6edf4;
-            border-radius: 34px;
-            padding: 4px 6px 4px 16px;
-        }
-        .logo-info {
-            flex: 1;           /* 占1份（即1/2） */
-            min-width: 0;
-        }
-        .file-name {
-            font-size: 0.72rem;
-            color: #4a627a;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .logo-button-area {
-            flex: 1;           /* 占1份（即1/2） */
-            display: flex;
-            gap: 8px;
-        }
-        .mini-upload-btn, .mini-cancel-btn {
-            flex: 1;           /* 两个按钮各占一半宽度 */
-            background: #eef2fa;
-            border: none;
-            font-size: 0.68rem;
-            font-weight: 500;
-            padding: 5px 0;
-            border-radius: 40px;
-            cursor: pointer;
-            text-align: center;
-            white-space: nowrap;
-            transition: 0.1s;
-        }
-        .mini-cancel-btn {
-            background: #ffe6e5;
-            color: #b91c1c;
-        }
-        .mini-upload-btn:active, .mini-cancel-btn:active {
-            transform: scale(0.96);
-        }
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            margin: 14px 0 10px;
-        }
-        button {
-            flex: 1;
-            padding: 10px 8px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 48px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-        #genBtn {
-            background: #cae0f5;
-            color: #1e4a76;
-        }
-        #genBtn:active {
-            background: #b4d0ee;
-            transform: scale(0.97);
-        }
-        #savePcBtn {
-            background: #c9ecd9;
-            color: #1a6348;
-        }
-        #savePcBtn:active {
-            background: #b5e0ca;
-            transform: scale(0.97);
-        }
-        #saveMobileBtn {
-            background: #e8d5a6;
-            color: #7a5e2a;
-        }
-        #saveMobileBtn:active {
-            background: #dfc991;
-            transform: scale(0.97);
-        }
-        .status-bar {
-            background: #eff4fa;
-            padding: 5px 12px;
-            border-radius: 40px;
-            font-size: 0.68rem;
-            text-align: center;
-            margin: 8px 0 10px;
-            color: #2d627e;
-        }
-        .qr-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 6px 0 4px;
-            position: relative;
-            min-height: 230px;
-            background: #ffffff;
-            border-radius: 24px;
-            padding: 8px;
-        }
-        #qrcode {
-            display: inline-flex;
-            justify-content: center;
-            position: relative;
-            background: white;
-            border-radius: 18px;
-        }
-        #qrcode canvas, #qrcode img, #qrcode table {
-            display: block;
-            margin: 0 auto;
-            border-radius: 16px;
-            max-width: 100%;
-            height: auto;
-        }
-        .logo-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 17%;
-            max-width: 70px;
-            background: white;
-            border-radius: 14px;
-            padding: 3px;
-            background-color: white;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-            pointer-events: none;
-            z-index: 10;
-            display: none;
-            object-fit: contain;
-        }
-        .temp-save-img {
-            margin-top: 12px;
-            text-align: center;
-            background: #f8fafc;
-            border-radius: 20px;
-            padding: 10px;
-            animation: fadeIn 0.3s;
-        }
-        .temp-save-img p {
-            font-size: 0.68rem;
-            color: #2c6280;
-            margin-bottom: 8px;
-        }
-        .temp-save-img img {
-            max-width: 100%;
-            border-radius: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-        @media (max-width: 500px) {
-            .card { padding: 12px; }
-            .setting-card { padding: 4px 8px; }
-            .setting-label { font-size: 0.65rem; }
-            .setting-card input,
-            .setting-card input[type="color"] {
-                width: 80px;
-            }
-            .mini-upload-btn, .mini-cancel-btn {
-                font-size: 0.62rem;
-                padding: 4px 0;
-            }
-            button {
-                font-size: 0.75rem;
-                padding: 8px 4px;
-            }
-            .lang-btn {
-                font-size: 0.65rem;
-                padding: 3px 10px;
-            }
-        }
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
-        .btn-group {
-            flex-wrap: wrap;
-        }
-        .btn-group button {
-            flex: 1 0 auto;
-            min-width: 0;
-        }
-        .tip {
-            text-align: center;
-            font-size: 0.6rem;
-            color: #7f8d9e;
-            margin-top: 8px;
-            border-top: 1px solid #eef3fc;
-            padding-top: 8px;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', Roboto, Helvetica, Arial, sans-serif; background: #f2f6fb; padding: 12px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { max-width: 540px; width: 100%; margin: 0 auto; background: #ffffff; border-radius: 28px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04); overflow: hidden; padding: 16px; position: relative; }
+        .lang-bar { display: flex; gap: 8px; margin-bottom: 8px; justify-content: flex-start; }
+        .lang-btn { background: #eef2fa; border: none; font-size: 0.7rem; font-weight: 500; padding: 4px 12px; border-radius: 40px; cursor: pointer; color: #2c6280; transition: 0.1s; }
+        .lang-btn.active { background: #cae0f5; color: #1e4a76; font-weight: 600; }
+        .lang-btn:active { transform: scale(0.96); }
+        h1 { font-size: 1.5rem; font-weight: 620; text-align: center; margin-bottom: 2px; background: linear-gradient(135deg, #1f3b4c, #2c6285); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .sub { text-align: center; font-size: 0.68rem; color: #7c8ba0; margin-bottom: 14px; border-bottom: 1px solid #eef3fc; padding-bottom: 8px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 500; color: #2c4a6e; margin-bottom: 4px; }
+        textarea { width: 100%; padding: 9px 12px; font-size: 0.88rem; border: 1.5px solid #e6edf4; border-radius: 20px; background: #ffffff; font-family: inherit; outline: none; resize: vertical; min-height: 74px; }
+        textarea::placeholder { color: #bbbdc2; font-weight: 400; font-size: 0.85rem; }
+        textarea:focus { border-color: #8bb4e6; box-shadow: 0 0 0 3px rgba(100, 140, 200, 0.1); }
+        .settings-row { display: flex; gap: 12px; margin-bottom: 12px; }
+        .setting-card { flex: 1; background: #fbfdff; border: 1px solid #edf2f8; border-radius: 20px; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .setting-label { display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 500; color: #2c5a7a; white-space: nowrap; }
+        .setting-label span:first-child { font-size: 0.8rem; }
+        .setting-card input { width: 96px; padding: 6px 4px; font-size: 0.8rem; border: 1px solid #e2ecf5; border-radius: 28px; background: white; text-align: center; flex-shrink: 0; }
+        .setting-card input[type="color"] { width: 96px; height: 34px; padding: 2px; border-radius: 28px; cursor: pointer; }
+        .logo-section { margin: 8px 0 10px; }
+        .logo-label { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 500; color: #2c4a6e; margin-bottom: 6px; }
+        .logo-flex { display: flex; align-items: center; gap: 12px; background: #fbfdff; border: 1px solid #e6edf4; border-radius: 34px; padding: 4px 6px 4px 16px; }
+        .logo-info { flex: 1; min-width: 0; }
+        .file-name { font-size: 0.72rem; color: #4a627a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .logo-button-area { flex: 1; display: flex; gap: 8px; }
+        .mini-upload-btn, .mini-cancel-btn { flex: 1; background: #eef2fa; border: none; font-size: 0.68rem; font-weight: 500; padding: 5px 0; border-radius: 40px; cursor: pointer; text-align: center; white-space: nowrap; transition: 0.1s; }
+        .mini-cancel-btn { background: #ffe6e5; color: #b91c1c; }
+        .mini-upload-btn:active, .mini-cancel-btn:active { transform: scale(0.96); }
+        .btn-group { display: flex; gap: 12px; margin: 14px 0 10px; }
+        button { flex: 1; padding: 10px 8px; font-size: 0.88rem; font-weight: 600; border: none; border-radius: 48px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+        #genBtn { background: #cae0f5; color: #1e4a76; }
+        #genBtn:active { background: #b4d0ee; transform: scale(0.97); }
+        #savePcBtn { background: #c9ecd9; color: #1a6348; }
+        #savePcBtn:active { background: #b5e0ca; transform: scale(0.97); }
+        #saveMobileBtn { background: #e8d5a6; color: #7a5e2a; }
+        #saveMobileBtn:active { background: #dfc991; transform: scale(0.97); }
+        .status-bar { background: #eff4fa; padding: 5px 12px; border-radius: 40px; font-size: 0.68rem; text-align: center; margin: 8px 0 10px; color: #2d627e; }
+        .qr-container { display: flex; justify-content: center; align-items: center; margin: 6px 0 4px; position: relative; min-height: 230px; background: #ffffff; border-radius: 24px; padding: 8px; }
+        #qrcode { display: inline-flex; justify-content: center; position: relative; background: white; border-radius: 18px; }
+        #qrcode canvas { display: block; margin: 0 auto; border-radius: 16px; max-width: 100%; height: auto; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .logo-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 17%; max-width: 70px; background: white; border-radius: 14px; padding: 3px; background-color: white; box-shadow: 0 3px 12px rgba(0,0,0,0.1); pointer-events: none; z-index: 10; display: none; object-fit: contain; }
+        .temp-save-img { margin-top: 12px; text-align: center; background: #f8fafc; border-radius: 20px; padding: 10px; animation: fadeIn 0.3s; }
+        .temp-save-img p { font-size: 0.68rem; color: #2c6280; margin-bottom: 8px; }
+        .temp-save-img img { max-width: 100%; border-radius: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 500px) { .card { padding: 12px; } .setting-card { padding: 4px 8px; } .setting-label { font-size: 0.65rem; } .setting-card input, .setting-card input[type="color"] { width: 80px; } .mini-upload-btn, .mini-cancel-btn { font-size: 0.62rem; padding: 4px 0; } button { font-size: 0.75rem; padding: 8px 4px; } .lang-btn { font-size: 0.65rem; padding: 3px 10px; } }
+        input[type="number"] { -moz-appearance: textfield; }
+        .btn-group { flex-wrap: wrap; }
+        .btn-group button { flex: 1 0 auto; min-width: 0; }
+        .tip { text-align: center; font-size: 0.6rem; color: #7f8d9e; margin-top: 8px; border-top: 1px solid #eef3fc; padding-top: 8px; }
     </style>
 </head>
 <body>
 <div class="card">
-    <!-- 左上角语言切换按钮 -->
     <div class="lang-bar">
         <button id="langZhBtn" class="lang-btn active">中文</button>
         <button id="langEnBtn" class="lang-btn">English</button>
     </div>
-
     <h1 id="title">✨ 灵动二维码</h1>
-    <div id="subtitle" class="sub">网址 / 文本 · 个性Logo · 双模式保存</div>
-
+    <div id="subtitle" class="sub">网址 / 文本 · 个性Logo · 自适应版本</div>
     <div class="form-group">
         <label id="contentLabel">📝 内容</label>
-        <textarea id="content" placeholder="例如：https://example.com 或 输入任意文字"></textarea>
+        <textarea id="content" placeholder="例如：https://example.com 或 输入任意文字（支持长文本）"></textarea>
     </div>
-
     <div class="settings-row">
-        <div class="setting-card">
-            <div class="setting-label"><span>📐</span> <span id="sizeLabel">尺寸</span></div>
-            <input type="number" id="size" value="280" min="120" max="560" step="10">
-        </div>
-        <div class="setting-card">
-            <div class="setting-label"><span>🔲</span> <span id="marginLabel">边距</span></div>
-            <input type="number" id="margin" value="2" min="0" max="8" step="1">
-        </div>
+        <div class="setting-card"><div class="setting-label"><span>📐</span> <span id="sizeLabel">尺寸</span></div><input type="number" id="size" value="300" min="200" max="800" step="10"></div>
+        <div class="setting-card"><div class="setting-label"><span>🔲</span> <span id="marginLabel">边距</span></div><input type="number" id="margin" value="2" min="0" max="8" step="1"></div>
     </div>
-
     <div class="settings-row">
-        <div class="setting-card">
-            <div class="setting-label"><span>🎨</span> <span id="darkLabel">前景</span></div>
-            <input type="color" id="darkColor" value="#1f3b4c">
-        </div>
-        <div class="setting-card">
-            <div class="setting-label"><span>🖼️</span> <span id="lightLabel">背景</span></div>
-            <input type="color" id="lightColor" value="#ffffff">
-        </div>
+        <div class="setting-card"><div class="setting-label"><span>🎨</span> <span id="darkLabel">前景</span></div><input type="color" id="darkColor" value="#1f3b4c"></div>
+        <div class="setting-card"><div class="setting-label"><span>🖼️</span> <span id="lightLabel">背景</span></div><input type="color" id="lightColor" value="#ffffff"></div>
     </div>
-
     <div class="logo-section">
         <div class="logo-label"><span>🖼️</span> <span id="logoLabel">中心 Logo (透明背景佳)</span></div>
         <div class="logo-flex">
@@ -415,312 +91,175 @@
             </div>
         </div>
     </div>
-
     <div class="btn-group">
         <button id="genBtn"><span id="genBtnText">⚡ 制二维码</span></button>
         <button id="savePcBtn"><span id="savePcBtnText">💾 电脑保存</span></button>
         <button id="saveMobileBtn"><span id="saveMobileBtnText">📱 手机保存</span></button>
     </div>
-
     <div class="status-bar" id="statusMsg">✨ 就绪 · 点击制二维码</div>
-
     <div class="qr-container" id="qrContainer">
         <div id="qrcode" style="position: relative;"></div>
         <img id="logoPreview" class="logo-overlay" alt="logo">
     </div>
     <div class="tip" id="tipText">
         💡 网址需含 http:// 或 https:// ，扫码自动跳转<br>
-        📱 手机用户请点击「手机保存」，然后长按图片即可保存到相册
+        📱 手机用户请点击「手机保存」，然后长按图片即可保存到相册<br>
+        🔄 自动选择最佳二维码版本，清晰扫描，最大支持 ~1000汉字
     </div>
 </div>
 
 <script>
-    // DOM 元素 (静态文本相关)
-    const titleEl = document.getElementById('title');
-    const subtitleEl = document.getElementById('subtitle');
-    const contentLabel = document.getElementById('contentLabel');
-    const sizeLabel = document.getElementById('sizeLabel');
-    const marginLabel = document.getElementById('marginLabel');
-    const darkLabel = document.getElementById('darkLabel');
-    const lightLabel = document.getElementById('lightLabel');
-    const logoLabel = document.getElementById('logoLabel');
-    const uploadBtnText = document.getElementById('uploadBtnText');
-    const cancelBtnText = document.getElementById('cancelBtnText');
-    const genBtnTextSpan = document.getElementById('genBtnText');
-    const savePcBtnTextSpan = document.getElementById('savePcBtnText');
-    const saveMobileBtnTextSpan = document.getElementById('saveMobileBtnText');
-    const tipTextDiv = document.getElementById('tipText');
-    const contentTextarea = document.getElementById('content');
-    const statusDiv = document.getElementById('statusMsg');
-    
-    // 其他功能 DOM
-    const sizeInput = document.getElementById('size');
-    const marginInput = document.getElementById('margin');
-    const darkColorPicker = document.getElementById('darkColor');
-    const lightColorPicker = document.getElementById('lightColor');
-    const logoFileInput = document.getElementById('logoInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const cancelLogoBtn = document.getElementById('cancelLogoBtn');
-    const fileNameSpan = document.getElementById('fileName');
-    const genBtn = document.getElementById('genBtn');
-    const savePcBtn = document.getElementById('savePcBtn');
-    const saveMobileBtn = document.getElementById('saveMobileBtn');
-    const qrcodeContainer = document.getElementById('qrcode');
-    const logoPreviewImg = document.getElementById('logoPreview');
-    
-    // 语言映射表
+    // ==================== 多语言支持 ====================
     const langMap = {
         zh: {
-            title: '✨ 灵动二维码',
-            subtitle: '网址 / 文本 · 个性Logo · 双模式保存',
-            contentLabel: '📝 内容',
-            sizeLabel: '尺寸',
-            marginLabel: '边距',
-            darkLabel: '前景',
-            lightLabel: '背景',
-            logoLabel: '🖼️ 中心 Logo (透明背景佳)',
-            uploadBtn: '选取',
-            cancelBtn: '取消',
-            genBtn: '⚡ 制二维码',
-            savePcBtn: '💾 电脑保存',
-            saveMobileBtn: '📱 手机保存',
-            defaultFileName: '未选择图片',
-            placeholder: '例如：https://example.com 或 输入任意文字',
-            tip: '💡 网址需含 http:// 或 https:// ，扫码自动跳转<br>📱 手机用户请点击「手机保存」，然后长按图片即可保存到相册',
+            title: '✨ 灵动二维码', subtitle: '网址 / 文本 · 个性Logo · 自适应版本',
+            contentLabel: '📝 内容', sizeLabel: '尺寸', marginLabel: '边距', darkLabel: '前景', lightLabel: '背景',
+            logoLabel: '🖼️ 中心 Logo (透明背景佳)', uploadBtn: '选取', cancelBtn: '取消',
+            genBtn: '⚡ 制二维码', savePcBtn: '💾 电脑保存', saveMobileBtn: '📱 手机保存',
+            defaultFileName: '未选择图片', placeholder: '例如：https://example.com 或 输入任意文字（支持长文本）',
+            tip: '💡 网址需含 http:// 或 https:// ，扫码自动跳转<br>📱 手机用户请点击「手机保存」，然后长按图片即可保存到相册<br>🔄 自动选择最佳二维码版本，清晰扫描，最大支持 ~1000汉字',
             statusReady: '✨ 就绪 · 点击制二维码',
-            // 状态消息映射
             status: {
-                '请输入内容': '请输入内容',
-                '请选择图片文件': '请选择图片文件',
+                '请输入内容': '请输入内容', '请选择图片文件': '请选择图片文件',
                 'Logo图片小于2MB体验更佳': 'Logo图片小于2MB体验更佳',
                 'Logo已载入，重新制二维码即可融合': 'Logo已载入，重新制二维码即可融合',
                 'Logo已更新，点击“制二维码”重新绘制': 'Logo已更新，点击“制二维码”重新绘制',
-                'Logo加载失败': 'Logo加载失败',
-                '生成失败：': '生成失败：',
-                '内容过长，已自动截断至600字符，请检查二维码内容': '内容过长，已自动截断至600字符，请检查二维码内容',
-                '二维码生成成功！': '二维码生成成功！',
-                '请先生成二维码': '请先生成二维码',
+                'Logo加载失败': 'Logo加载失败', '生成失败：': '生成失败：',
+                '二维码生成成功！': '二维码生成成功！', '请先生成二维码': '请先生成二维码',
                 '已调起分享，请选择保存图片': '已调起分享，请选择保存图片',
                 '图片已显示，长按即可保存到手机相册': '图片已显示，长按即可保存到手机相册',
-                '生成图片失败': '生成图片失败',
-                '图片已开始下载': '图片已开始下载',
-                '下载失败': '下载失败',
-                '请输入内容，然后点击制二维码': '请输入内容，然后点击制二维码',
-                '🌐 网址模式 · ': '🌐 网址模式 · ',
-                '📄 文本模式 · ': '📄 文本模式 · ',
-                ' 字符': ' 字符',
-                'Logo已清除，二维码已更新': 'Logo已清除，二维码已更新',
-                '当前没有Logo，无需取消': '当前没有Logo，无需取消'
+                '生成图片失败': '生成图片失败', '图片已开始下载': '图片已开始下载',
+                '下载失败': '下载失败', '请输入内容，然后点击制二维码': '请输入内容，然后点击制二维码',
+                '🌐 网址模式 · ': '🌐 网址模式 · ', '📄 文本模式 · ': '📄 文本模式 · ',
+                ' 字符': ' 字符', 'Logo已清除，二维码已更新': 'Logo已清除，二维码已更新',
+                '当前没有Logo，无需取消': '当前没有Logo，无需取消', '正在生成二维码，请稍候...': '正在生成二维码，请稍候...'
             }
         },
         en: {
-            title: '✨ Smart QR Code',
-            subtitle: 'URL / Text · Custom Logo · Dual Save Modes',
-            contentLabel: '📝 Content',
-            sizeLabel: 'Size',
-            marginLabel: 'Margin',
-            darkLabel: 'Foreground',
-            lightLabel: 'Background',
-            logoLabel: '🖼️ Center Logo (transparent bg recommended)',
-            uploadBtn: 'Select',
-            cancelBtn: 'Cancel',
-            genBtn: '⚡ Generate',
-            savePcBtn: '💾 Save to PC',
-            saveMobileBtn: '📱 Save to Mobile',
-            defaultFileName: 'No image selected',
-            placeholder: 'e.g., https://example.com or any text',
-            tip: '💡 URLs must start with http:// or https:// for auto-redirect<br>📱 Mobile: tap "Save to Mobile" and long-press the image to save',
+            title: '✨ Smart QR Code', subtitle: 'URL / Text · Custom Logo · Adaptive Version',
+            contentLabel: '📝 Content', sizeLabel: 'Size', marginLabel: 'Margin', darkLabel: 'Foreground', lightLabel: 'Background',
+            logoLabel: '🖼️ Center Logo (transparent bg recommended)', uploadBtn: 'Select', cancelBtn: 'Cancel',
+            genBtn: '⚡ Generate', savePcBtn: '💾 Save to PC', saveMobileBtn: '📱 Save to Mobile',
+            defaultFileName: 'No image selected', placeholder: 'e.g., https://example.com or any text (long text supported)',
+            tip: '💡 URLs must start with http:// or https:// for auto-redirect<br>📱 Mobile: tap "Save to Mobile" and long-press the image to save<br>🔄 Auto-select best QR version, clear scanning, up to ~1000 Chinese chars',
             statusReady: '✨ Ready · Click Generate',
             status: {
-                '请输入内容': 'Please enter content',
-                '请选择图片文件': 'Please select an image file',
+                '请输入内容': 'Please enter content', '请选择图片文件': 'Please select an image file',
                 'Logo图片小于2MB体验更佳': 'Logo image should be under 2MB',
                 'Logo已载入，重新制二维码即可融合': 'Logo loaded, regenerate QR code to apply',
                 'Logo已更新，点击“制二维码”重新绘制': 'Logo updated, click "Generate" to redraw',
-                'Logo加载失败': 'Logo loading failed',
-                '生成失败：': 'Generation failed: ',
-                '内容过长，已自动截断至600字符，请检查二维码内容': 'Content too long, truncated to 600 chars, please verify QR content',
-                '二维码生成成功！': 'QR Code generated successfully!',
-                '请先生成二维码': 'Please generate QR code first',
+                'Logo加载失败': 'Logo loading failed', '生成失败：': 'Generation failed: ',
+                '二维码生成成功！': 'QR Code generated successfully!', '请先生成二维码': 'Please generate QR code first',
                 '已调起分享，请选择保存图片': 'Share sheet opened, choose save option',
                 '图片已显示，长按即可保存到手机相册': 'Image displayed below, long-press to save to album',
-                '生成图片失败': 'Failed to generate image',
-                '图片已开始下载': 'Download started',
-                '下载失败': 'Download failed',
-                '请输入内容，然后点击制二维码': 'Enter content, then click Generate',
-                '🌐 网址模式 · ': '🌐 URL mode · ',
-                '📄 文本模式 · ': '📄 Text mode · ',
-                ' 字符': ' chars',
-                'Logo已清除，二维码已更新': 'Logo cleared, QR code updated',
-                '当前没有Logo，无需取消': 'No logo currently, nothing to cancel'
+                '生成图片失败': 'Failed to generate image', '图片已开始下载': 'Download started',
+                '下载失败': 'Download failed', '请输入内容，然后点击制二维码': 'Enter content, then click Generate',
+                '🌐 网址模式 · ': '🌐 URL mode · ', '📄 文本模式 · ': '📄 Text mode · ',
+                ' 字符': ' chars', 'Logo已清除，二维码已更新': 'Logo cleared, QR code updated',
+                '当前没有Logo，无需取消': 'No logo currently, nothing to cancel', '正在生成二维码，请稍候...': 'Generating QR code, please wait...'
             }
         }
     };
-    
+
     let currentLang = 'zh';
-    
+    const elements = {
+        title: document.getElementById('title'), subtitle: document.getElementById('subtitle'),
+        contentLabel: document.getElementById('contentLabel'), sizeLabel: document.getElementById('sizeLabel'),
+        marginLabel: document.getElementById('marginLabel'), darkLabel: document.getElementById('darkLabel'),
+        lightLabel: document.getElementById('lightLabel'), logoLabel: document.getElementById('logoLabel'),
+        uploadBtnText: document.getElementById('uploadBtnText'), cancelBtnText: document.getElementById('cancelBtnText'),
+        genBtnTextSpan: document.getElementById('genBtnText'), savePcBtnTextSpan: document.getElementById('savePcBtnText'),
+        saveMobileBtnTextSpan: document.getElementById('saveMobileBtnText'), tipTextDiv: document.getElementById('tipText'),
+        contentTextarea: document.getElementById('content'), statusDiv: document.getElementById('statusMsg')
+    };
+    const sizeInput = document.getElementById('size'), marginInput = document.getElementById('margin');
+    const darkColorPicker = document.getElementById('darkColor'), lightColorPicker = document.getElementById('lightColor');
+    const logoFileInput = document.getElementById('logoInput'), uploadBtn = document.getElementById('uploadBtn');
+    const cancelLogoBtn = document.getElementById('cancelLogoBtn'), fileNameSpan = document.getElementById('fileName');
+    const genBtn = document.getElementById('genBtn'), savePcBtn = document.getElementById('savePcBtn');
+    const saveMobileBtn = document.getElementById('saveMobileBtn'), qrcodeContainer = document.getElementById('qrcode');
+    const logoPreviewImg = document.getElementById('logoPreview');
+
     function updateStaticTexts() {
-        const dict = langMap[currentLang];
-        titleEl.innerText = dict.title;
-        subtitleEl.innerText = dict.subtitle;
-        contentLabel.innerHTML = dict.contentLabel;
-        sizeLabel.innerText = dict.sizeLabel;
-        marginLabel.innerText = dict.marginLabel;
-        darkLabel.innerText = dict.darkLabel;
-        lightLabel.innerText = dict.lightLabel;
-        logoLabel.innerHTML = dict.logoLabel;
-        uploadBtnText.innerText = dict.uploadBtn;
-        cancelBtnText.innerText = dict.cancelBtn;
-        genBtnTextSpan.innerHTML = dict.genBtn;
-        savePcBtnTextSpan.innerHTML = dict.savePcBtn;
-        saveMobileBtnTextSpan.innerHTML = dict.saveMobileBtn;
-        contentTextarea.placeholder = dict.placeholder;
-        tipTextDiv.innerHTML = dict.tip;
-        // 如果文件名是默认状态，更新为当前语言的默认文件名
-        const zhDefault = langMap.zh.defaultFileName;
-        const enDefault = langMap.en.defaultFileName;
-        if (fileNameSpan.innerText === zhDefault || fileNameSpan.innerText === enDefault) {
-            fileNameSpan.innerText = dict.defaultFileName;
-        }
-        // 状态栏初始内容
-        if (statusDiv.innerText === langMap.zh.statusReady || statusDiv.innerText === langMap.en.statusReady) {
-            statusDiv.innerText = dict.statusReady;
-        } else {
-            // 尝试映射现有状态
-            let currentMsg = statusDiv.innerText;
-            for (let [zhMsg, enMsg] of Object.entries(langMap.zh.status)) {
-                if (currentMsg === zhMsg && currentLang === 'en') {
-                    statusDiv.innerText = langMap.en.status[zhMsg];
-                    break;
-                } else if (currentMsg === enMsg && currentLang === 'zh') {
-                    statusDiv.innerText = zhMsg;
-                    break;
-                }
+        const d = langMap[currentLang];
+        elements.title.innerText = d.title; elements.subtitle.innerText = d.subtitle;
+        elements.contentLabel.innerHTML = d.contentLabel; elements.sizeLabel.innerText = d.sizeLabel;
+        elements.marginLabel.innerText = d.marginLabel; elements.darkLabel.innerText = d.darkLabel;
+        elements.lightLabel.innerText = d.lightLabel; elements.logoLabel.innerHTML = d.logoLabel;
+        elements.uploadBtnText.innerText = d.uploadBtn; elements.cancelBtnText.innerText = d.cancelBtn;
+        elements.genBtnTextSpan.innerHTML = d.genBtn; elements.savePcBtnTextSpan.innerHTML = d.savePcBtn;
+        elements.saveMobileBtnTextSpan.innerHTML = d.saveMobileBtn; elements.contentTextarea.placeholder = d.placeholder;
+        elements.tipTextDiv.innerHTML = d.tip;
+        if (fileNameSpan.innerText === langMap.zh.defaultFileName || fileNameSpan.innerText === langMap.en.defaultFileName)
+            fileNameSpan.innerText = d.defaultFileName;
+        if (elements.statusDiv.innerText === langMap.zh.statusReady || elements.statusDiv.innerText === langMap.en.statusReady)
+            elements.statusDiv.innerText = d.statusReady;
+        else {
+            let cur = elements.statusDiv.innerText;
+            for (let [zh, en] of Object.entries(langMap.zh.status)) {
+                if (cur === zh && currentLang === 'en') { elements.statusDiv.innerText = langMap.en.status[zh]; break; }
+                else if (cur === en && currentLang === 'zh') { elements.statusDiv.innerText = zh; break; }
             }
         }
     }
-    
-    // 改进的 setStatus 支持双语
     function setStatus(type, message) {
-        let displayMsg = message;
+        let disp = message;
         if (currentLang === 'en') {
-            if (langMap.en.status[message]) {
-                displayMsg = langMap.en.status[message];
-            } else if (message.startsWith('🌐 网址模式 · ')) {
-                let urlPart = message.replace('🌐 网址模式 · ', '');
-                displayMsg = langMap.en.status['🌐 网址模式 · '] + urlPart;
-            } else if (message.startsWith('📄 文本模式 · ')) {
-                let textPart = message.replace('📄 文本模式 · ', '');
-                displayMsg = langMap.en.status['📄 文本模式 · '] + textPart;
-            } else if (message.includes(' 字符')) {
-                displayMsg = message.replace(' 字符', langMap.en.status[' 字符']);
-            } else if (message.includes('生成失败：')) {
-                let errMsg = message.replace('生成失败：', '');
-                displayMsg = langMap.en.status['生成失败：'] + errMsg;
-            }
+            if (langMap.en.status[message]) disp = langMap.en.status[message];
+            else if (message.startsWith('🌐 网址模式 · ')) disp = langMap.en.status['🌐 网址模式 · '] + message.slice(8);
+            else if (message.startsWith('📄 文本模式 · ')) disp = langMap.en.status['📄 文本模式 · '] + message.slice(8);
+            else if (message.includes(' 字符')) disp = message.replace(' 字符', langMap.en.status[' 字符']);
+            else if (message.includes('生成失败：')) disp = langMap.en.status['生成失败：'] + message.slice(6);
         } else {
             if (langMap.en.status[message]) {
-                for (let [zh, en] of Object.entries(langMap.en.status)) {
-                    if (en === message) {
-                        displayMsg = zh;
-                        break;
-                    }
-                }
-            } else if (message.startsWith('🌐 URL mode · ')) {
-                let urlPart = message.replace('🌐 URL mode · ', '');
-                displayMsg = '🌐 网址模式 · ' + urlPart;
-            } else if (message.startsWith('📄 Text mode · ')) {
-                let textPart = message.replace('📄 Text mode · ', '');
-                displayMsg = '📄 文本模式 · ' + textPart;
-            } else if (message.includes(' chars')) {
-                displayMsg = message.replace(' chars', ' 字符');
-            } else if (message.includes('Generation failed: ')) {
-                let errMsg = message.replace('Generation failed: ', '');
-                displayMsg = '生成失败：' + errMsg;
-            }
+                for (let [zh, en] of Object.entries(langMap.en.status)) if (en === message) { disp = zh; break; }
+            } else if (message.startsWith('🌐 URL mode · ')) disp = '🌐 网址模式 · ' + message.slice(14);
+            else if (message.startsWith('📄 Text mode · ')) disp = '📄 文本模式 · ' + message.slice(14);
+            else if (message.includes(' chars')) disp = message.replace(' chars', ' 字符');
+            else if (message.includes('Generation failed: ')) disp = '生成失败：' + message.slice(19);
         }
-        if (type === 'error') statusDiv.innerHTML = `⚠️ ${displayMsg}`;
-        else if (type === 'success') statusDiv.innerHTML = `✅ ${displayMsg}`;
-        else if (type === 'info') statusDiv.innerHTML = `ℹ️ ${displayMsg}`;
-        else statusDiv.innerHTML = displayMsg;
-        statusDiv.style.background = type === 'error' ? '#ffeae8' : '#eef4fc';
+        if (type === 'error') elements.statusDiv.innerHTML = `⚠️ ${disp}`;
+        else if (type === 'success') elements.statusDiv.innerHTML = `✅ ${disp}`;
+        else if (type === 'info') elements.statusDiv.innerHTML = `ℹ️ ${disp}`;
+        else elements.statusDiv.innerHTML = disp;
+        elements.statusDiv.style.background = type === 'error' ? '#ffeae8' : '#eef4fc';
     }
     window.setStatus = setStatus;
-    
-    // 核心变量
-    let currentQRCanvas = null;
-    let currentLogoImageElem = null;
-    let currentLogoURL = null;
-    let isQRGenerated = false;
-    let currentQrSize = 280;
-    let currentMargin = 2;
-    let currentDarkColor = '#1f3b4c';
-    let currentLightColor = '#ffffff';
-    
-    function isValidUrl(str) {
-        return /^https?:\/\//i.test(str.trim());
-    }
-    
+
+    let currentQRCanvas = null, currentLogoImageElem = null, currentLogoURL = null, isQRGenerated = false;
+    let currentQrSize = 300, currentMargin = 2, currentDarkColor = '#1f3b4c', currentLightColor = '#ffffff';
+
+    function isValidUrl(str) { return /^https?:\/\//i.test(str.trim()); }
     function resetLogo() {
-        if(currentLogoURL) {
-            URL.revokeObjectURL(currentLogoURL);
-            currentLogoURL = null;
-        }
-        currentLogoImageElem = null;
-        logoPreviewImg.style.display = 'none';
-        logoPreviewImg.src = '';
+        if(currentLogoURL) URL.revokeObjectURL(currentLogoURL);
+        currentLogoImageElem = null; currentLogoURL = null;
+        logoPreviewImg.style.display = 'none'; logoPreviewImg.src = '';
         fileNameSpan.innerText = langMap[currentLang].defaultFileName;
-        // 清空 file input 的值，以便再次选择同一文件也能触发 change
         logoFileInput.value = '';
     }
-    
     function clearQRContainer() {
-        while(qrcodeContainer.firstChild) {
-            qrcodeContainer.removeChild(qrcodeContainer.firstChild);
-        }
-        currentQRCanvas = null;
-        isQRGenerated = false;
+        while(qrcodeContainer.firstChild) qrcodeContainer.removeChild(qrcodeContainer.firstChild);
+        currentQRCanvas = null; isQRGenerated = false;
         const newOverlay = document.createElement('img');
-        newOverlay.id = 'logoPreview';
-        newOverlay.className = 'logo-overlay';
-        newOverlay.alt = 'logo';
-        newOverlay.style.display = 'none';
+        newOverlay.id = 'logoPreview'; newOverlay.className = 'logo-overlay';
+        newOverlay.alt = 'logo'; newOverlay.style.display = 'none';
         qrcodeContainer.appendChild(newOverlay);
     }
-    
-    // 取消Logo功能
     function cancelLogo() {
-        if (!currentLogoImageElem) {
-            setStatus('info', '当前没有Logo，无需取消');
-            return;
-        }
+        if (!currentLogoImageElem) { setStatus('info', '当前没有Logo，无需取消'); return; }
         resetLogo();
-        if (isQRGenerated) {
-            // 重新生成二维码（去掉Logo覆盖层）
-            generateQRCode();
-        } else {
-            const overlay = document.getElementById('logoPreview');
-            if(overlay) overlay.style.display = 'none';
-        }
+        if (isQRGenerated) generateQRCode();
+        else { const ov = document.getElementById('logoPreview'); if(ov) ov.style.display = 'none'; }
         setStatus('success', 'Logo已清除，二维码已更新');
     }
-    
     uploadBtn.addEventListener('click', () => logoFileInput.click());
     cancelLogoBtn.addEventListener('click', cancelLogo);
-    
     logoFileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        // 清空 input 值，以便下次选择同一文件也能触发
         logoFileInput.value = '';
         if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            setStatus('error', '请选择图片文件');
-            return;
-        }
-        if (file.size > 2.2 * 1024 * 1024) {
-            setStatus('error', 'Logo图片小于2MB体验更佳');
-            return;
-        }
+        if (!file.type.startsWith('image/')) { setStatus('error', '请选择图片文件'); return; }
+        if (file.size > 2.2 * 1024 * 1024) { setStatus('error', 'Logo图片小于2MB体验更佳'); return; }
         if(currentLogoURL) URL.revokeObjectURL(currentLogoURL);
         const objUrl = URL.createObjectURL(file);
         currentLogoURL = objUrl;
@@ -732,157 +271,106 @@
             const shortName = file.name.length > 24 ? file.name.slice(0,20)+'...' : file.name;
             fileNameSpan.innerText = shortName;
             setStatus('success', 'Logo已载入，重新制二维码即可融合');
-            if(isQRGenerated) {
-                setStatus('info', 'Logo已更新，点击“制二维码”重新绘制');
-                generateQRCode();
-            }
+            if(isQRGenerated) { setStatus('info', 'Logo已更新，点击“制二维码”重新绘制'); generateQRCode(); }
         };
         img.onerror = () => { resetLogo(); setStatus('error', 'Logo加载失败'); };
         img.src = objUrl;
     });
-    
-    function drawQRCode(text, size, margin, darkColor, lightColor, callback) {
-        let processedText = text.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
-        const tempDiv = document.createElement('div');
-        tempDiv.style.display = 'none';
-        document.body.appendChild(tempDiv);
+
+    // 核心：使用 qrcode 库，自动选择最佳版本，H纠错，保证清晰度
+    async function drawQRCodeWithLibrary(text, size, margin, darkColor, lightColor, callback) {
         try {
-            new QRCode(tempDiv, {
-                text: processedText,
-                width: size,
-                height: size,
-                colorDark: darkColor,
-                colorLight: lightColor,
-                correctLevel: QRCode.CorrectLevel.L
-            });
-            setTimeout(() => {
-                const qrCanvas = tempDiv.querySelector('canvas');
-                if (!qrCanvas) {
-                    document.body.removeChild(tempDiv);
-                    callback(new Error('未找到二维码元素，请检查内容是否过长'));
-                    return;
-                }
-                const finalCanvas = document.createElement('canvas');
-                const ctx = finalCanvas.getContext('2d');
-                finalCanvas.width = size + margin * 2;
-                finalCanvas.height = size + margin * 2;
-                ctx.fillStyle = lightColor;
-                ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-                ctx.drawImage(qrCanvas, margin, margin, size, size);
-                document.body.removeChild(tempDiv);
-                callback(null, finalCanvas);
-            }, 50);
+            let processedText = text.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+            const opts = {
+                errorCorrectionLevel: 'H',   // 高容错，支持Logo
+                margin: 0,                    // 外边距我们自己添加
+                color: {
+                    dark: darkColor,
+                    light: lightColor
+                },
+                width: size                   // 指定最终宽度，库会自动缩放并保持清晰
+            };
+            const canvas = document.createElement('canvas');
+            await QRCode.toCanvas(canvas, processedText, opts);
+            // 此时 canvas 的尺寸 = size × size（因为指定了width）
+            // 添加用户指定的外边距
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = size + margin * 2;
+            finalCanvas.height = size + margin * 2;
+            const ctx = finalCanvas.getContext('2d');
+            ctx.fillStyle = lightColor;
+            ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+            ctx.drawImage(canvas, margin, margin, size, size);
+            callback(null, finalCanvas);
         } catch (err) {
-            document.body.removeChild(tempDiv);
-            if (err.message && err.message.includes('code length overflow')) {
-                let shortText = processedText.slice(0, 600);
-                setStatus('info', '内容过长，已自动截断至600字符，请检查二维码内容');
-                drawQRCode(shortText, size, margin, darkColor, lightColor, callback);
-            } else {
-                callback(err);
-            }
+            callback(err);
         }
     }
-    
+
     function generateQRCode() {
-        const rawContent = contentTextarea.value.trim();
-        if(!rawContent) {
-            setStatus('error', '请输入内容');
-            return false;
-        }
+        const raw = elements.contentTextarea.value.trim();
+        if(!raw) { setStatus('error', '请输入内容'); return false; }
         let qrSize = parseInt(sizeInput.value);
-        if(isNaN(qrSize) || qrSize < 110) qrSize = 280;
-        if(qrSize > 620) qrSize = 600;
+        if(isNaN(qrSize) || qrSize < 200) qrSize = 300;
+        if(qrSize > 800) qrSize = 800;
         const marginVal = parseInt(marginInput.value);
         const margin = isNaN(marginVal) ? 2 : Math.min(10, Math.max(0, marginVal));
-        const darkColor = darkColorPicker.value;
-        const lightColor = lightColorPicker.value;
-        
-        currentQrSize = qrSize;
-        currentMargin = margin;
-        currentDarkColor = darkColor;
-        currentLightColor = lightColor;
-        
-        const isUrl = isValidUrl(rawContent);
-        if(isUrl) {
-            let shortUrl = rawContent.length > 44 ? rawContent.slice(0,40)+'…' : rawContent;
-            setStatus('info', `🌐 网址模式 · ${shortUrl}`);
-        } else {
-            setStatus('info', `📄 文本模式 · ${rawContent.length} 字符`);
-        }
-        
-        removeTempImage();
-        clearQRContainer();
-        
-        drawQRCode(rawContent, qrSize, margin, darkColor, lightColor, (err, canvas) => {
-            if (err) {
-                setStatus('error', '生成失败：' + err.message);
-                return;
+        const dark = darkColorPicker.value, light = lightColorPicker.value;
+        currentQrSize = qrSize; currentMargin = margin; currentDarkColor = dark; currentLightColor = light;
+        const isUrl = isValidUrl(raw);
+        if(isUrl) setStatus('info', `🌐 网址模式 · ${raw.length > 44 ? raw.slice(0,40)+'…' : raw}`);
+        else setStatus('info', `📄 文本模式 · ${raw.length} 字符`);
+        removeTempImage(); clearQRContainer();
+        setStatus('info', '正在生成二维码，请稍候...');
+        drawQRCodeWithLibrary(raw, qrSize, margin, dark, light, (err, canvas) => {
+            if(err) { 
+                console.error(err);
+                setStatus('error', '生成失败：' + (err.message || '内容可能过长或格式错误，请减少内容')); 
+                return; 
             }
             qrcodeContainer.appendChild(canvas);
             currentQRCanvas = canvas;
             isQRGenerated = true;
             setStatus('success', '二维码生成成功！');
-            const overlay = document.getElementById('logoPreview');
-            if(overlay && currentLogoImageElem && currentLogoURL) {
-                overlay.src = currentLogoURL;
-                overlay.style.display = 'block';
-                let logoSize = Math.max(28, Math.floor(qrSize * 0.18));
-                overlay.style.width = `${logoSize}px`;
-                overlay.style.maxWidth = '74px';
-                overlay.style.borderRadius = '14px';
-                overlay.style.padding = '3px';
-                overlay.style.backgroundColor = 'white';
-            } else if(overlay) {
-                overlay.style.display = 'none';
-            }
+            const ov = document.getElementById('logoPreview');
+            if(ov && currentLogoImageElem && currentLogoURL) {
+                ov.src = currentLogoURL;
+                ov.style.display = 'block';
+                let logoSize = Math.max(32, Math.floor(canvas.width * 0.18));
+                ov.style.width = `${logoSize}px`; ov.style.maxWidth = '80px';
+                ov.style.borderRadius = '14px'; ov.style.padding = '3px';
+                ov.style.backgroundColor = 'white';
+            } else if(ov) ov.style.display = 'none';
         });
         return true;
     }
-    
+
     async function getFinalImageDataURL() {
-        if(!isQRGenerated || !currentQRCanvas) {
-            throw new Error('二维码未生成');
-        }
-        const margin = currentMargin;
-        const lightBg = currentLightColor;
-        const qrSize = currentQrSize;
+        if(!isQRGenerated || !currentQRCanvas) throw new Error('二维码未生成');
         const canvas = document.createElement('canvas');
-        canvas.width = qrSize + margin * 2;
-        canvas.height = qrSize + margin * 2;
+        canvas.width = currentQRCanvas.width; canvas.height = currentQRCanvas.height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = lightBg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(currentQRCanvas, margin, margin, qrSize, qrSize);
+        ctx.fillStyle = currentLightColor; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(currentQRCanvas, 0, 0);
         if(currentLogoImageElem && currentLogoImageElem.complete && currentLogoImageElem.naturalWidth > 0) {
-            const maxLogo = Math.max(30, Math.floor(qrSize * 0.2));
+            const maxLogo = Math.max(32, Math.floor(canvas.width * 0.2));
             let w = currentLogoImageElem.width, h = currentLogoImageElem.height;
             let drawW = maxLogo, drawH = maxLogo * (h/w);
             if(drawH > maxLogo) { drawH = maxLogo; drawW = maxLogo * (w/h); }
-            const logoX = margin + (qrSize - drawW)/2;
-            const logoY = margin + (qrSize - drawH)/2;
+            const logoX = (canvas.width - drawW)/2, logoY = (canvas.height - drawH)/2;
             ctx.save();
             ctx.fillStyle = '#ffffff';
             const radius = Math.min(drawW, drawH)/2 + 6;
-            ctx.beginPath();
-            ctx.arc(logoX + drawW/2, logoY + drawH/2, radius, 0, Math.PI*2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(logoX+drawW/2, logoY+drawH/2, radius, 0, Math.PI*2); ctx.fill();
             ctx.drawImage(currentLogoImageElem, logoX, logoY, drawW, drawH);
             ctx.restore();
         }
         return canvas.toDataURL('image/png');
     }
-    
-    function removeTempImage() {
-        const tempDiv = document.getElementById('tempSaveImage');
-        if(tempDiv) tempDiv.remove();
-    }
-    
+
+    function removeTempImage() { const d = document.getElementById('tempSaveImage'); if(d) d.remove(); }
     async function saveMobile() {
-        if(!isQRGenerated) {
-            setStatus('error', '请先生成二维码');
-            return;
-        }
+        if(!isQRGenerated) { setStatus('error', '请先生成二维码'); return; }
         saveMobileBtn.disabled = true;
         try {
             const dataURL = await getFinalImageDataURL();
@@ -890,26 +378,18 @@
             const blob = await (await fetch(dataURL)).blob();
             const file = new File([blob], `QR_${Date.now()}.png`, { type: 'image/png' });
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({ title: '二维码', text: '分享二维码图片', files: [file] });
-                    setStatus('success', '已调起分享，请选择保存图片');
-                    saveMobileBtn.disabled = false;
-                    return;
-                } catch (shareErr) { console.log(shareErr); }
+                try { await navigator.share({ title: '二维码', text: '分享二维码图片', files: [file] }); setStatus('success', '已调起分享，请选择保存图片'); saveMobileBtn.disabled = false; return; } catch(e) {}
             }
             const tempDiv = document.createElement('div');
-            tempDiv.id = 'tempSaveImage';
-            tempDiv.className = 'temp-save-img';
+            tempDiv.id = 'tempSaveImage'; tempDiv.className = 'temp-save-img';
             tempDiv.innerHTML = `<p>📸 长按下方图片，选择“保存图像”</p><img src="${dataURL}" alt="QR">`;
-            const statusBar = document.getElementById('statusMsg');
-            statusBar.parentNode.insertBefore(tempDiv, statusBar.nextSibling);
+            elements.statusDiv.parentNode.insertBefore(tempDiv, elements.statusDiv.nextSibling);
             setStatus('success', '图片已显示，长按即可保存到手机相册');
             tempDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
             setTimeout(() => { const tip = document.getElementById('tempSaveImage'); if(tip && tip.querySelector('p')) tip.querySelector('p').style.opacity = '0.6'; }, 8000);
-        } catch (err) { setStatus('error', err.message || '生成图片失败'); } 
+        } catch(err) { setStatus('error', err.message || '生成图片失败'); }
         finally { saveMobileBtn.disabled = false; }
     }
-    
     async function savePc() {
         if(!isQRGenerated) { setStatus('error', '请先生成二维码'); return; }
         savePcBtn.disabled = true;
@@ -917,35 +397,25 @@
             const dataURL = await getFinalImageDataURL();
             const link = document.createElement('a');
             link.download = `QR_${Date.now()}.png`;
-            link.href = dataURL;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.href = dataURL; document.body.appendChild(link); link.click(); document.body.removeChild(link);
             setStatus('success', '图片已开始下载');
-        } catch (err) { setStatus('error', err.message || '下载失败'); } 
+        } catch(err) { setStatus('error', err.message || '下载失败'); }
         finally { savePcBtn.disabled = false; }
     }
-    
-    // 语言切换逻辑
+
     function switchLanguage(lang) {
         currentLang = lang;
         updateStaticTexts();
         document.getElementById('langZhBtn').classList.toggle('active', lang === 'zh');
         document.getElementById('langEnBtn').classList.toggle('active', lang === 'en');
-        if (isQRGenerated && currentQRCanvas) {
-            generateQRCode();
-        } else {
-            setStatus('info', langMap[currentLang].statusReady);
-        }
+        if (isQRGenerated && currentQRCanvas) generateQRCode();
+        else setStatus('info', langMap[currentLang].statusReady);
     }
-    
     document.getElementById('langZhBtn').addEventListener('click', () => switchLanguage('zh'));
     document.getElementById('langEnBtn').addEventListener('click', () => switchLanguage('en'));
-    
     genBtn.addEventListener('click', (e) => { e.preventDefault(); generateQRCode(); });
     savePcBtn.addEventListener('click', (e) => { e.preventDefault(); savePc(); });
     saveMobileBtn.addEventListener('click', (e) => { e.preventDefault(); saveMobile(); });
-    
     setStatus('info', '请输入内容，然后点击制二维码');
 </script>
 </body>
